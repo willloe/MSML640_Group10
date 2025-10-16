@@ -1,0 +1,22 @@
+﻿{
+  "\": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SlideLayout",
+  "type": "object",
+  "properties": {
+    "canvas_size": { "type": "array", "items": { "type": "integer" }, "minItems": 2, "maxItems": 2 },
+    "elements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "class": { "type": "string" },
+          "bbox_xywh": { "type": "array", "items": { "type": "number" }, "minItems": 4, "maxItems": 4 },
+          "z_order": { "type": "integer" },
+          "reading_order": { "type": "integer" }
+        },
+        "required": ["class", "bbox_xywh"]
+      }
+    }
+  },
+  "required": ["canvas_size", "elements"]
+}
