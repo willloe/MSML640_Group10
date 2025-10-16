@@ -1,7 +1,0 @@
-﻿[project]
-name = "slides-ai-root"
-version = "0.0.1"
-requires-python = ">=3.10"
-
-[tool.black]
-line-length = 100
