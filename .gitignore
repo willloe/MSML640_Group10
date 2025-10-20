@@ -8,6 +8,8 @@ __pycache__/
 # Data (keep large assets out of git)
 data/
 artifacts/
+packages/classifier/images/SlideVQA/by_class
+packages/classifier/images/SlideVQA/full_dataset
 
 # Misc
 .DS_Store
