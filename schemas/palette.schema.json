@@ -1,0 +1,36 @@
+﻿{
+  "$id": "urn:msml640:palette.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Palette",
+  "description": "Simple color palette and optional background style hint for slide backgrounds.",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "primary": {
+      "title": "Primary",
+      "type": "string",
+      "pattern": "^#[0-9A-Fa-f]{6}$",
+      "description": "Primary hex color like #1E40AF"
+    },
+    "secondary": {
+      "title": "Secondary",
+      "type": ["string", "null"],
+      "pattern": "^#[0-9A-Fa-f]{6}$",
+      "default": null
+    },
+    "accent": {
+      "title": "Accent",
+      "type": ["string", "null"],
+      "pattern": "^#[0-9A-Fa-f]{6}$",
+      "default": null
+    },
+    "bg_style": {
+      "title": "Background Style",
+      "type": ["string", "null"],
+      "default": null,
+      "description": "Freeform style hint, for example: minimalist gradient, subtle texture, soft blur, solid fill."
+    }
+  },
+  "required": ["primary"],
+  "x-schema-version": "1.0"
+}

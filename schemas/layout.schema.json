@@ -1,0 +1,57 @@
+﻿{
+  "$id": "urn:msml640:layout.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SlideLayout",
+  "description": "Layout for a single slide canvas. Used to build control maps for background generation.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "canvas_size": {
+      "description": "[H, W] in pixels.",
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 1
+      },
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "elements": {
+      "description": "Slide elements with bounding boxes in XYWH.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "class": {
+            "type": "string",
+            "enum": ["title", "body", "image", "logo", "caption", "footer"]
+          },
+          "bbox_xywh": {
+            "description": "[x, y, w, h] in pixels",
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "minItems": 4,
+            "maxItems": 4
+          },
+          "z_order": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          },
+          "reading_order": {
+            "type": "integer",
+            "minimum": 0,
+            "default": 0
+          }
+        },
+        "required": ["class", "bbox_xywh"]
+      }
+    }
+  },
+  "required": ["canvas_size", "elements"]
+}
