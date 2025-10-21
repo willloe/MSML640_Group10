@@ -1,4 +1,3 @@
-# Run: python scripts/smoke_dataloader.py
 import sys
 from pathlib import Path
 
