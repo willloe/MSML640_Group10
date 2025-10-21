@@ -11,6 +11,9 @@ artifacts/
 packages/classifier/images/SlideVQA/full_dataset/annotated/
 packages/classifier/images/SlideVQA/full_dataset/original/
 packages/classifier/images/SlideVQA/by_class
+packages/classifier/text/output
+packages/classifier/text/sample_data
+packages/classifier/text/temp_slidevqa
 
 # Misc
 .DS_Store
