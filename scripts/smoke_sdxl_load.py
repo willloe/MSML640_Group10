@@ -1,5 +1,6 @@
 import sys
 from pathlib import Path
+from packages.diffusion.src.sdxl import prompt_from_palette
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "packages" / "diffusion" / "src"
@@ -23,17 +24,15 @@ def main():
         print("Failed to initialize SDXL pipeline:", e)
         return
 
-    prompt = prepare_prompt(
-        "professional slide background",
-        {"primary": "#1E40AF", "secondary": "#60A5FA", "bg_style": "minimalist gradient"}
-    )
+    palette = {"primary": "#1E40AF", "secondary": "#60A5FA", "accent": "#F59E0B", "bg_style": "minimalist gradient"}
+    prompt = prompt_from_palette(palette)
 
     print("Device:", device)
     print("Prompt:", prompt)
 
-    # if device == "cpu":
-    #     print("Loaded SDXL on CPU")
-    #     return
+    if device == "cpu":
+        print("Loaded SDXL on CPU")
+        return
 
     try:
         out = pipe(
