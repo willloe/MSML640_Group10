@@ -29,6 +29,10 @@ def main():
         negative_prompt="busy patterns, high-frequency noise",
         out_dir=ROOT / "outputs",
         out_name="smoke_infer.png",
+        use_controlnet=False,
+        controlnet_model_id=None,
+        control_strength=0.8,
+        debug=True,
     )
     print("Saved (or would save) to:", out_path)
 
