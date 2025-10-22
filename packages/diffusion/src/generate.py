@@ -145,21 +145,14 @@ def main():
     print(f"  Element coverage: {(control_map[0] > 0).sum().item() / control_map[0].numel() * 100:.2f}%")
     print(f"  Safe zone coverage: {(safe_zone_mask > 0).sum().item() / safe_zone_mask.numel() * 100:.2f}%")
 
-    print("\nGenerating visualization...")
     vis = visualize_control_map(control_map, save_path='control_map_demo.png')
     print("Saved control map visualization to: control_map_demo.png")
 
-    print("\nDemo: Creating placeholder background with safe zone masking...")
+    print("\nDemo: Creating placeholder background with safe zone masking")
     placeholder_bg = Image.new('RGB', (1024, 768), color=(100, 150, 200))
     masked_bg = apply_safe_zone_mask(placeholder_bg, safe_zone_mask, neutral_color=(245, 245, 245))
     masked_bg.save('safe_zone_demo.png')
     print("Saved safe zone demo to: safe_zone_demo.png")
-
-    print("\n=== Demo Complete ===")
-    print("Next steps:")
-    print("  1. Integrate with SDXL pipeline for actual generation")
-    print("  2. Implement ControlNet conditioning")
-    print("  3. Add palette-based color conditioning")
 
 
 if __name__ == '__main__':
