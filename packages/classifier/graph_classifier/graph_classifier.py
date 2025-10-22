@@ -168,6 +168,7 @@ if __name__ == "__main__":
     print(f"Training complete. Best validate accuracy is: {best_accuracy:.3f}")
 
 # Command line to run file:
+# TODO: fixed command line path for saving the model correctly
 
 # run from graph_classifier folder (incorrect, but for reference):
 # ..\packages\classifier\graph_classifier>python graph_classifier.py
