@@ -14,6 +14,11 @@ except Exception:
     from sdxl import load_sdxl_with_lora, prompt_from_palette
 
 try:
+    from control import make_control_image
+except Exception:
+    make_control_image = None
+
+try:
     from generate import apply_safe_zone_mask
 except Exception:
     import sys
@@ -67,6 +72,7 @@ def generate_and_mask(
     use_controlnet: bool = False,
     controlnet_model_id: Optional[str] = None,
     control_strength: float = 0.8,
+    control_from: str = "element",  # "element" | "safe" | "edge"
     debug: bool = True,
 ) -> str:
     dev = device or ("cuda" if torch.cuda.is_available() else "cpu")
@@ -101,7 +107,7 @@ def generate_and_mask(
 
         print(f"Using ControlNet: True ({controlnet_model_id}), strength={control_strength}")
 
-        control_image = control_image_from_map(control_map, size=(int(width), int(height)))
+        control_image = control_image_from_map(control_map, safe_zone=safe_zone, size=(int(width), int(height)), mode=str(control_from))
         controlnet = ControlNetModel.from_pretrained(controlnet_model_id, torch_dtype=torch.float16)
         pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
             model_id, controlnet=controlnet, torch_dtype=torch.float16
