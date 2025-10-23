@@ -13,6 +13,25 @@ CLASS_MAP = {
     'footer': 6,
 }
 
+def estimate_unused_layout_density(layout_json: Dict) -> float:
+    canvas = layout_json.get('canvas_size', [1, 1])
+    canvas_h, canvas_w = canvas if len(canvas) == 2 else (1, 1)
+    total_area = canvas_h * canvas_w
+
+    used_area = 0
+    for elem in layout_json.get('elements', []):
+        try:
+            x, y, w, h = elem.get('bbox_xywh', [0, 0, 0, 0])
+            w = max(0, min(w, canvas_w - x))
+            h = max(0, min(h, canvas_h - y))
+            used_area += w * h
+        except Exception:
+            pass
+
+    if total_area <= 0:
+        return 0.0
+    return max(0.0, min(1.0, 1 - (used_area / total_area)))
+
 
 def create_layout_control_map(
     layout_json: Dict,
@@ -145,21 +164,14 @@ def main():
     print(f"  Element coverage: {(control_map[0] > 0).sum().item() / control_map[0].numel() * 100:.2f}%")
     print(f"  Safe zone coverage: {(safe_zone_mask > 0).sum().item() / safe_zone_mask.numel() * 100:.2f}%")
 
-    print("\nGenerating visualization...")
     vis = visualize_control_map(control_map, save_path='control_map_demo.png')
     print("Saved control map visualization to: control_map_demo.png")
 
-    print("\nDemo: Creating placeholder background with safe zone masking...")
     placeholder_bg = Image.new('RGB', (1024, 768), color=(100, 150, 200))
     masked_bg = apply_safe_zone_mask(placeholder_bg, safe_zone_mask, neutral_color=(245, 245, 245))
     masked_bg.save('safe_zone_demo.png')
     print("Saved safe zone demo to: safe_zone_demo.png")
 
-    print("\n=== Demo Complete ===")
-    print("Next steps:")
-    print("  1. Integrate with SDXL pipeline for actual generation")
-    print("  2. Implement ControlNet conditioning")
-    print("  3. Add palette-based color conditioning")
 
 
 if __name__ == '__main__':
