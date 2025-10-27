@@ -1,14 +1,13 @@
 import argparse
 import sys
 from pathlib import Path
-from packages.diffusion.src.sdxl import prompt_from_palette
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "packages" / "diffusion" / "src"
 sys.path.append(str(SRC))
 
 import torch
-from sdxl import load_sdxl_with_lora, prepare_prompt
+from sdxl import load_sdxl_with_lora, prepare_prompt, prompt_from_palette
 
 def parse_args():
     p = argparse.ArgumentParser()
