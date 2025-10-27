@@ -5,13 +5,17 @@ from PIL import Image, ImageDraw
 import numpy as np
 
 try:
-    from sdxl import load_sdxl_with_lora, prompt_from_palette
+    from sdxl import load_sdxl_with_lora, prompt_from_palette, _set_scheduler as _sdxl_set_scheduler
 except Exception:
     import sys
     ROOT = Path(__file__).resolve().parents[2]
     if str(ROOT) not in sys.path:
         sys.path.append(str(ROOT))
     from sdxl import load_sdxl_with_lora, prompt_from_palette
+    try:
+        from sdxl import _set_scheduler as _sdxl_set_scheduler
+    except Exception:
+        _sdxl_set_scheduler = None
 
 try:
     from control import make_control_image
@@ -26,11 +30,6 @@ except Exception:
     if str(ROOT) not in sys.path:
         sys.path.append(str(ROOT))
     from generate import apply_safe_zone_mask
-
-try:
-    from control import control_image_from_map
-except Exception:
-    control_image_from_map = None
 
 # Delay heavy imports
 try:
@@ -73,6 +72,7 @@ def generate_and_mask(
     controlnet_model_id: Optional[str] = None,
     control_strength: float = 0.8,
     control_from: str = "element",  # "element" | "safe" | "edge"
+    scheduler: Optional[str] = None,
     debug: bool = True,
 ) -> str:
     dev = device or ("cuda" if torch.cuda.is_available() else "cpu")
@@ -98,8 +98,8 @@ def generate_and_mask(
     if use_controlnet:
         if StableDiffusionXLControlNetPipeline is None or ControlNetModel is None:
             raise ImportError("diffusers ControlNet classes not available.")
-        if control_image_from_map is None:
-            raise RuntimeError("control.control_image_from_map not importable.")
+        if make_control_image is None:
+            raise RuntimeError("control.make_control_image not importable.")
         if control_map is None:
             raise ValueError("use_controlnet=True requires a control_map tensor [4,H,W].")
         if controlnet_model_id is None:
@@ -107,7 +107,7 @@ def generate_and_mask(
 
         print(f"Using ControlNet: True ({controlnet_model_id}), strength={control_strength}")
 
-        control_image = control_image_from_map(control_map, safe_zone=safe_zone, size=(int(width), int(height)), mode=str(control_from))
+        control_image = make_control_image(control_map=control_map, safe_zone=safe_zone, size=(int(width), int(height)), mode=str(control_from))
         controlnet = ControlNetModel.from_pretrained(controlnet_model_id, torch_dtype=torch.float16)
         pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
             model_id, controlnet=controlnet, torch_dtype=torch.float16
@@ -117,6 +117,13 @@ def generate_and_mask(
         except Exception:
             pass
         pipe = pipe.to("cuda")
+
+        if scheduler and _sdxl_set_scheduler is not None:
+            try:
+                _sdxl_set_scheduler(pipe, scheduler)
+                print(f"Scheduler active (ControlNet): {pipe.scheduler.__class__.__name__}")
+            except Exception as e:
+                print(f"Failed to set scheduler on ControlNet pipeline: {e}")
 
         if lora_path:
             pipe.load_lora_weights(lora_path)
@@ -136,7 +143,7 @@ def generate_and_mask(
     else:
         # Base SDXL only
         pipe = load_sdxl_with_lora(
-            model_id=model_id, lora_path=lora_path, device=dev, dtype=None, cpu_offload=True
+            model_id=model_id, lora_path=lora_path, device=dev, dtype=None, cpu_offload=True, scheduler=scheduler,
         )
         result = pipe(
             prompt=prompt,
