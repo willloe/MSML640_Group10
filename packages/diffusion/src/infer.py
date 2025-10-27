@@ -18,9 +18,9 @@ except Exception:
         _sdxl_set_scheduler = None
 
 try:
-    from control import make_control_image
+    from control import control_image_from_map
 except Exception:
-    make_control_image = None
+    control_image_from_map = None
 
 try:
     from generate import apply_safe_zone_mask
@@ -98,8 +98,8 @@ def generate_and_mask(
     if use_controlnet:
         if StableDiffusionXLControlNetPipeline is None or ControlNetModel is None:
             raise ImportError("diffusers ControlNet classes not available.")
-        if make_control_image is None:
-            raise RuntimeError("control.make_control_image not importable.")
+        if control_image_from_map is None:
+            raise RuntimeError("control.control_image_from_map not importable.")
         if control_map is None:
             raise ValueError("use_controlnet=True requires a control_map tensor [4,H,W].")
         if controlnet_model_id is None:
@@ -107,7 +107,7 @@ def generate_and_mask(
 
         print(f"Using ControlNet: True ({controlnet_model_id}), strength={control_strength}")
 
-        control_image = make_control_image(control_map=control_map, safe_zone=safe_zone, size=(int(width), int(height)), mode=str(control_from))
+        control_image = control_image_from_map(control_map=control_map, safe_zone=safe_zone, size=(int(width), int(height)), mode=str(control_from))
         controlnet = ControlNetModel.from_pretrained(controlnet_model_id, torch_dtype=torch.float16)
         pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
             model_id, controlnet=controlnet, torch_dtype=torch.float16
