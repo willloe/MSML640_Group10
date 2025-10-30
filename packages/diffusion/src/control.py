@@ -1,7 +1,7 @@
 from typing import Tuple
 import numpy as np
 from PIL import Image
-from pyparsing import Optional
+from typing import Optional
 import torch
 
 def to_uint8(mask):
@@ -20,6 +20,9 @@ def erode_3x3_binary(mask01: np.ndarray):
     for n in neighbor[1:]:
         out = np.minimum(out, n)
     return out.astype(np.float32)
+
+def make_control_image(control_map: torch.Tensor, safe_zone: Optional[torch.Tensor], size: Tuple[int, int], mode: str = "element") -> Image.Image:
+    return control_image_from_map(control_map, safe_zone, size, mode)
 
 def control_image_from_map(control_map: torch.Tensor, safe_zone: Optional[torch.Tensor], size: Tuple[int, int],  mode: str = "element") -> Image.Image:
     if not (isinstance(control_map, torch.Tensor) and control_map.ndim == 3 and control_map.shape[0] >= 1):
