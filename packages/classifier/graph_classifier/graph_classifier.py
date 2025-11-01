@@ -75,7 +75,11 @@ def evaluate_model(model, loader, device, classes):
 if __name__ == "__main__":
 
     # for CUDA acceleration
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # for MacOS with Metal Performance Shaders (MPS) backend
+    device = torch.device("mps" if torch.cuda.is_available() else "cpu")
+
     print(f"device: {device}")
 
     save_path = "results"
@@ -121,8 +125,11 @@ if __name__ == "__main__":
     train_dataset.dataset.transform = train_transform
     valid_dataset.dataset.transform = valid_transform
 
-    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4, pin_memory=True)
-    valid_loader = DataLoader(valid_dataset, batch_size=32, shuffle=False, num_workers=4, pin_memory=True)
+    # true if using CUDA, false if using CPU or MPS
+    pin_memory = torch.cuda.is_available()
+
+    train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, num_workers=4, pin_memory=pin_memory)
+    valid_loader = DataLoader(valid_dataset, batch_size=32, shuffle=False, num_workers=4, pin_memory=pin_memory)
 
     # TODO: modify classes to get more types of graphs
     # Current classes are: ['Diagram', 'Figure', 'Image']
