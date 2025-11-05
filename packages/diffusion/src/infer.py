@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Dict, Optional
 import torch
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter, ImageChops
 import numpy as np
 
 try:
@@ -166,3 +166,53 @@ def generate_and_mask(
         print(f"reserved element coverage:   {1.0 - cov:.3f}")
 
     return str(masked_path)
+
+def upscale_image(img: Image.Image, target_wh: tuple[int, int]) -> Image.Image:
+    w, h = map(int, target_wh)
+    if (img.width, img.height) == (w, h):
+        return img
+    return img.resize((w, h), resample=Image.LANCZOS)
+
+def _edge_ring_mask(layout: Dict, canvas_wh: tuple[int, int], pad_px: int = 3, ring_thickness: int = 4) -> Image.Image:
+    W, H = canvas_wh
+    ring = Image.new("L", (W, H), 0)
+    draw = ImageDraw.Draw(ring)
+
+    for el in layout.get("elements", []):
+        x, y, w, h = map(int, el["bbox_xywh"])
+        outer = [x - pad_px, y - pad_px, x + w + pad_px, y + h + pad_px]
+        inner = [x + pad_px, y + pad_px, x + w - pad_px, y + h - pad_px]
+        draw.rectangle(outer, fill=255)
+        draw.rectangle(inner, fill=0)
+
+        if ring_thickness > 0:
+            f = ring.filter(ImageFilter.MaxFilter(size=max(3, 2 * ring_thickness + 1)))
+            ring = ImageChops.lighter(ring, f)
+
+    ring = ring.filter(ImageFilter.GaussianBlur(radius=2))
+    return ring
+
+def inpaint_neutral_edges(
+    img: Image.Image,
+    layout: Dict,
+    mode: str = "blur",
+    pad_px: int = 3,
+    ring_thickness: int = 4,
+    neutral_rgb: tuple[int, int, int] = (245, 245, 245),
+    blur_radius: int = 6,
+) -> Image.Image:
+    ring = _edge_ring_mask(layout, (img.width, img.height), pad_px=pad_px, ring_thickness=ring_thickness)
+
+    if mode == "blur":
+        blurred = img.filter(ImageFilter.GaussianBlur(radius=int(blur_radius)))
+        out = img.copy()
+        out.paste(blurred, mask=ring)
+        return out
+
+    if mode == "neutral":
+        fill = Image.new("RGB", img.size, tuple(int(c) for c in neutral_rgb))
+        out = img.copy()
+        out.paste(fill, mask=ring)
+        return out
+
+    raise ValueError("inpaint_neutral_edges: mode must be 'blur' or 'neutral'")
