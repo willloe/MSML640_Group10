@@ -87,14 +87,10 @@ class JsonlImageDataset(Dataset):
 def _inject_unet_lora(pipe: "StableDiffusionXLPipeline", rank: int = 8) -> int:
     pipe.unet.requires_grad_(False)
     unet_lora_cfg = PeftLoraConfig(
-        r=rank,
-        lora_alpha=rank,
-        target_modules=["to_q", "to_k", "to_v", "to_out.0"],
-        init_lora_weights="gaussian",
+        target_modules=["to_q", "to_k", "to_v", "to_out.0"]
     )
     pipe.unet.add_adapter(unet_lora_cfg)
-    trainable = sum(p.requires_grad for p in pipe.unet.parameters())
-    return trainable
+    return sum(p.requires_grad for p in pipe.unet.parameters())
 
 def _collect_lora_params(pipe: "StableDiffusionXLPipeline"):
     return [p for p in pipe.unet.parameters() if p.requires_grad]
@@ -127,9 +123,18 @@ def _encode_prompts(pipe: "StableDiffusionXLPipeline", captions: List[str], devi
 
     return prompt_embeds, pooled
 
-def _sdxl_time_ids(pipe: "StableDiffusionXLPipeline", bsz: int, height: int, width: int, device: str):
-    vals = [height, width, 0, 0, height, width]
-    return torch.tensor(vals, device=device, dtype=torch.int64).unsqueeze(0).repeat(bsz, 1)
+def _sdxl_time_ids(pipe: "StableDiffusionXLPipeline", bsz: int, height: int, width: int, device: str, dtype: torch.dtype,):
+    original_size = (height, width)
+    target_size = (height, width)
+    crop_coords = (0, 0)
+    add_time_ids = pipe._get_add_time_ids(
+        original_size=original_size,
+        crops_coords=crop_coords,
+        target_size=target_size,
+        dtype=dtype,
+    )
+    add_time_ids = add_time_ids.unsqueeze(0).repeat(bsz, 1).to(device)
+    return add_time_ids
 
 def _vae_encode(pipe: "StableDiffusionXLPipeline", imgs: torch.Tensor) -> torch.Tensor:
     imgs = imgs.to(pipe.device, dtype=pipe.vae.dtype)
@@ -221,12 +226,12 @@ def main(argv=None):
             prompt_embeds, pooled_embeds = _encode_prompts(pipe, captions, device=device)
 
             unet_dtype = next(pipe.unet.parameters()).dtype
-            time_ids = _sdxl_time_ids(pipe, bsz=bsz, height=pixels.shape[-2], width=pixels.shape[-1], device=device)
+            time_ids = _sdxl_time_ids(pipe, bsz=bsz, height=pixels.shape[-2], width=pixels.shape[-1], device=device, dtype=prompt_embeds.dtype)
             model_pred = pipe.unet(
                 noisy_latents.to(unet_dtype),
                 timesteps,
                 prompt_embeds,
-                added_cond_kwargs={"text_embeds": pooled_embeds, "time_ids": time_ids},
+                added_cond_kwargs={"text_embeds": pooled_embeds.to(unet_dtype), "time_ids": time_ids},
             ).sample
 
             pred_type = getattr(scheduler.config, "prediction_type", "epsilon")
