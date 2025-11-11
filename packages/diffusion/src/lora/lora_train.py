@@ -128,13 +128,12 @@ def _sdxl_time_ids(pipe: "StableDiffusionXLPipeline", bsz: int, height: int, wid
     target_size = (height, width)
     crop_coords = (0, 0)
     add_time_ids = pipe._get_add_time_ids(
-        original_size=original_size,
-        crops_coords=crop_coords,
-        target_size=target_size,
+        original_size,
+        crop_coords,
+        target_size,
         dtype=dtype,
     )
-    add_time_ids = add_time_ids.unsqueeze(0).repeat(bsz, 1).to(device)
-    return add_time_ids
+    return add_time_ids.to(device).repeat(bsz, 1)
 
 def _vae_encode(pipe: "StableDiffusionXLPipeline", imgs: torch.Tensor) -> torch.Tensor:
     imgs = imgs.to(pipe.device, dtype=pipe.vae.dtype)
@@ -231,7 +230,7 @@ def main(argv=None):
                 noisy_latents.to(unet_dtype),
                 timesteps,
                 prompt_embeds,
-                added_cond_kwargs={"text_embeds": pooled_embeds.to(unet_dtype), "time_ids": time_ids},
+                added_cond_kwargs={"text_embeds": pooled_embeds, "time_ids": time_ids},
             ).sample
 
             pred_type = getattr(scheduler.config, "prediction_type", "epsilon")
