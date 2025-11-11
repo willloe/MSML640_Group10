@@ -226,9 +226,14 @@ def main(argv=None):
             noisy_latents = scheduler.add_noise(latents, noise, timesteps)
             prompt_embeds, pooled_embeds = _encode_prompts(pipe, captions, device=device)
 
-            proj_dim = int(pooled_embeds.shape[-1])
-            if getattr(pipe.text_encoder_2.config, "projection_dim", None) is None:
-                pipe.text_encoder_2.config.projection_dim = proj_dim
+            proj_dim_target = getattr(pipe.text_encoder_2.config, "projection_dim", None)
+            if proj_dim_target is None:
+                proj_dim_target = 1280
+            pipe.text_encoder_2.config.projection_dim = int(proj_dim_target)
+
+            if pooled_embeds.shape[-1] != proj_dim_target:
+                print(f"!!! pooled_embeds dim {pooled_embeds.shape[-1]} != projection_dim {proj_dim_target}; slicing to match.")
+                pooled_embeds = pooled_embeds[..., :proj_dim_target]
 
             unet_dtype = next(pipe.unet.parameters()).dtype
             prompt_embeds = prompt_embeds.to(device=device, dtype=unet_dtype)
@@ -241,7 +246,7 @@ def main(argv=None):
                 width=pixels.shape[-1],
                 device=device,
                 dtype=prompt_embeds.dtype,
-                text_encoder_projection_dim=proj_dim,
+                text_encoder_projection_dim=proj_dim_target,
             )
             assert prompt_embeds.ndim == 3, f"prompt_embeds ndim={prompt_embeds.ndim}, shape={prompt_embeds.shape}"
             assert pooled_embeds.ndim == 2, f"pooled_embeds ndim={pooled_embeds.ndim}, shape={pooled_embeds.shape}"
