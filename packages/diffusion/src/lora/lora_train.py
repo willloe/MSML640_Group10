@@ -105,6 +105,15 @@ def _encode_prompts(pipe: "StableDiffusionXLPipeline", captions: List[str], devi
     )
     return enc[0], enc[1]
 
+def _sdxl_time_ids(pipe: "StableDiffusionXLPipeline", bsz: int, height: int, width: int, device: str):
+    add_time_ids = pipe._get_add_time_ids(
+        (height, width),
+        (0, 0),
+        (height, width),
+        dtype=pipe.text_encoder_2.dtype,
+    )
+    return add_time_ids.to(device).repeat(bsz, 1)
+
 def _vae_encode(pipe: "StableDiffusionXLPipeline", imgs: torch.Tensor) -> torch.Tensor:
     imgs = imgs.to(pipe.device, dtype=pipe.vae.dtype)
     posterior = pipe.vae.encode(imgs).latent_dist
@@ -195,11 +204,12 @@ def main(argv=None):
             prompt_embeds, pooled_embeds = _encode_prompts(pipe, captions, device=device)
 
             unet_dtype = next(pipe.unet.parameters()).dtype
+            time_ids = _sdxl_time_ids(pipe, bsz=bsz, height=pixels.shape[-2], width=pixels.shape[-1], device=device)
             model_pred = pipe.unet(
                 noisy_latents.to(unet_dtype),
                 timesteps,
                 prompt_embeds,
-                added_cond_kwargs={"pooled_text_embeds": pooled_embeds},
+                added_cond_kwargs={"text_embeds": pooled_embeds, "time_ids": time_ids},
             ).sample
 
             pred_type = getattr(scheduler.config, "prediction_type", "epsilon")
