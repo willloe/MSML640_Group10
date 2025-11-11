@@ -113,7 +113,7 @@ def _encode_prompts(pipe: "StableDiffusionXLPipeline", captions: List[str], devi
 
     if pooled is None:
         neg = [""] * len(captions)
-        prompt_embeds, pooled, _, _ = pipe.encode_prompt(
+        prompt_embeds, _, pooled, _ = pipe.encode_prompt(
             prompt=captions,
             negative_prompt=neg,
             device=device,
@@ -231,8 +231,9 @@ def main(argv=None):
                 proj_dim_target = 1280
             pipe.text_encoder_2.config.projection_dim = int(proj_dim_target)
 
+            if pooled_embeds.ndim == 3 and pooled_embeds.shape[1] == 1:
+                pooled_embeds = pooled_embeds.squeeze(1)
             if pooled_embeds.shape[-1] != proj_dim_target:
-                print(f"!!! pooled_embeds dim {pooled_embeds.shape[-1]} != projection_dim {proj_dim_target}; slicing to match.")
                 pooled_embeds = pooled_embeds[..., :proj_dim_target]
 
             unet_dtype = next(pipe.unet.parameters()).dtype
