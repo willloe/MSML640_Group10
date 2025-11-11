@@ -86,17 +86,39 @@ class JsonlImageDataset(Dataset):
         return {"pixel_values": tensor, "caption": caption}
 
 def _inject_unet_lora(pipe: "StableDiffusionXLPipeline", rank: int = 8) -> int:
+    unet = pipe.unet
+    block_out = list(unet.config.block_out_channels)
+    cross_dim_cfg = getattr(unet.config, "cross_attention_dim", None)
+
     procs = {}
-    for name, proc in pipe.unet.attn_processors.items():
-        hidden_size = getattr(proc, "hidden_size", None)
-        cross_dim = getattr(proc, "cross_attention_dim", None)
-        if hidden_size is None:
-            continue
-        if cross_dim is not None:
-            procs[name] = LoRAAttnProcessor2_0(hidden_size=hidden_size, cross_attention_dim=cross_dim, rank=rank)
+    for name in unet.attn_processors.keys():
+        is_self_attn = name.endswith("attn1.processor")
+        cross_dim = None if is_self_attn else cross_dim_cfg
+
+        if name.startswith("mid_block"):
+            hidden_size = block_out[-1]
+        elif name.startswith("down_blocks"):
+            try:
+                i = int(name.split(".")[1])
+            except Exception:
+                i = 0
+            hidden_size = block_out[i]
+        elif name.startswith("up_blocks"):
+            try:
+                i = int(name.split(".")[1])
+            except Exception:
+                i = 0
+            hidden_size = list(reversed(block_out))[i]
         else:
-            procs[name] = LoRAAttnProcessor2_0(hidden_size=hidden_size, rank=rank)
-    pipe.unet.set_attn_processor(procs)
+            hidden_size = block_out[-1]
+
+        procs[name] = LoRAAttnProcessor2_0(
+            hidden_size=hidden_size,
+            cross_attention_dim=cross_dim,
+            rank=rank,
+        )
+
+    unet.set_attn_processor(procs)
     return len(procs)
 
 def _collect_lora_params(pipe: "StableDiffusionXLPipeline"):
