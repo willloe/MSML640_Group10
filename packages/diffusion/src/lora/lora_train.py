@@ -13,7 +13,7 @@ try:
 
     from diffusers import StableDiffusionXLPipeline
     from diffusers.utils import logging as dlogging
-    from peft import LoraConfig
+    from peft import LoraConfig as PeftLoraConfig
 except Exception as e:
     torch = None
     F = None
@@ -23,12 +23,12 @@ except Exception as e:
     np = None
     StableDiffusionXLPipeline = None
     dlogging = None
-    LoraConfig = None
+    PeftLoraConfig  = None
 
 from .lora_data import build_manifest
 
 @dataclass
-class LoraConfig:
+class LoraTrainConfig:
     model_id: str
     output_dir: str
     train_jsonl: str
@@ -43,12 +43,12 @@ class LoraConfig:
     use_8bit_adam: bool = True
     seed: int = 42
 
-def _write_config(cfg: LoraConfig, out_path: Path) -> None:
+def _write_config(cfg: LoraTrainConfig, out_path: Path) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(asdict(cfg), indent=2))
 
 def _assert_reqs():
-    if torch is None or StableDiffusionXLPipeline is None or LoraConfig is None:
+    if torch is None or StableDiffusionXLPipeline is None or PeftLoraConfig is None:
         raise RuntimeError("Required packages not available. Please install: torch, diffusers, transformers, peft, accelerate, safetensors, ")
 
 class JsonlImageDataset(Dataset):
@@ -86,11 +86,8 @@ class JsonlImageDataset(Dataset):
 
 def _inject_unet_lora(pipe: "StableDiffusionXLPipeline", rank: int = 8) -> int:
     pipe.unet.requires_grad_(False)
-    unet_lora_cfg = LoraConfig(
-        r=rank,
-        lora_alpha=rank,
-        init_lora_weights="gaussian",
-        target_modules=["to_q", "to_k", "to_v", "to_out.0"],
+    unet_lora_cfg = PeftLoraConfig(
+        target_modules=["to_q", "to_k", "to_v", "to_out.0"]
     )
     pipe.unet.add_adapter(unet_lora_cfg)
     trainable = sum(p.requires_grad for p in pipe.unet.parameters())
@@ -146,7 +143,7 @@ def main(argv=None):
         images_dir = Path(args.images_dir).resolve()
         build_manifest(images_dir, train_jsonl, fallback_caption=args.fallback_caption)
 
-    cfg = LoraConfig(
+    cfg = LoraTrainConfig(
         model_id=args.model_id,
         output_dir=str(output_dir),
         train_jsonl=str(train_jsonl),
