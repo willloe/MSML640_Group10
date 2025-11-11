@@ -87,7 +87,10 @@ class JsonlImageDataset(Dataset):
 def _inject_unet_lora(pipe: "StableDiffusionXLPipeline", rank: int = 8) -> int:
     pipe.unet.requires_grad_(False)
     unet_lora_cfg = PeftLoraConfig(
-        target_modules=["to_q", "to_k", "to_v", "to_out.0"]
+        r=rank,
+        lora_alpha=rank,
+        target_modules=["to_q", "to_k", "to_v", "to_out.0"],
+        init_lora_weights="gaussian",
     )
     pipe.unet.add_adapter(unet_lora_cfg)
     trainable = sum(p.requires_grad for p in pipe.unet.parameters())
@@ -106,13 +109,8 @@ def _encode_prompts(pipe: "StableDiffusionXLPipeline", captions: List[str], devi
     return enc[0], enc[1]
 
 def _sdxl_time_ids(pipe: "StableDiffusionXLPipeline", bsz: int, height: int, width: int, device: str):
-    add_time_ids = pipe._get_add_time_ids(
-        (height, width),
-        (0, 0),
-        (height, width),
-        dtype=pipe.text_encoder_2.dtype,
-    )
-    return add_time_ids.to(device).repeat(bsz, 1)
+    vals = [height, width, 0, 0, height, width]
+    return torch.tensor(vals, device=device, dtype=torch.int64).unsqueeze(0).repeat(bsz, 1)
 
 def _vae_encode(pipe: "StableDiffusionXLPipeline", imgs: torch.Tensor) -> torch.Tensor:
     imgs = imgs.to(pipe.device, dtype=pipe.vae.dtype)
