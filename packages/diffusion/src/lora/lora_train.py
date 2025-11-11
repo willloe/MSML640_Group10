@@ -100,13 +100,32 @@ def _collect_lora_params(pipe: "StableDiffusionXLPipeline"):
     return [p for p in pipe.unet.parameters() if p.requires_grad]
 
 def _encode_prompts(pipe: "StableDiffusionXLPipeline", captions: List[str], device: str):
-    enc = pipe.encode_prompt(
+    out = pipe.encode_prompt(
         prompt=captions,
         device=device,
         num_images_per_prompt=1,
-        do_classifier_free_guidance=False
+        do_classifier_free_guidance=False,
     )
-    return enc[0], enc[1]
+
+    if isinstance(out, tuple):
+        if len(out) >= 2:
+            prompt_embeds, pooled = out[0], out[1]
+        else:
+            prompt_embeds, pooled = out[0], None
+    else:
+        prompt_embeds, pooled = out, None
+
+    if pooled is None:
+        neg = [""] * len(captions)
+        prompt_embeds, pooled, _, _ = pipe.encode_prompt(
+            prompt=captions,
+            negative_prompt=neg,
+            device=device,
+            num_images_per_prompt=1,
+            do_classifier_free_guidance=True,
+        )
+
+    return prompt_embeds, pooled
 
 def _sdxl_time_ids(pipe: "StableDiffusionXLPipeline", bsz: int, height: int, width: int, device: str):
     vals = [height, width, 0, 0, height, width]
