@@ -148,7 +148,7 @@ def main(argv=None):
     ap.add_argument("--images_dir", required=True, help="Folder with training images")
     ap.add_argument("--model_id", default="stabilityai/stable-diffusion-xl-base-1.0")
     ap.add_argument("--output_dir", default="outputs/lora/runs/exp01")
-    ap.add_argument("--resolution", type=int, default=1024)
+    ap.add_argument("--resolution", type=int, default=512)
     ap.add_argument("--rank", type=int, default=8)
     ap.add_argument("--lr", type=float, default=1e-4)
     ap.add_argument("--batch_size", type=int, default=1)
@@ -195,6 +195,15 @@ def main(argv=None):
 
     pipe = StableDiffusionXLPipeline.from_pretrained(cfg.model_id, torch_dtype=dtype)
     pipe.to(device)
+    pipe.enable_vae_slicing()
+    pipe.enable_vae_tiling()
+    try:
+        pipe.enable_xformers_memory_efficient_attention()
+    except Exception:
+        pass
+
+    pipe.unet.enable_gradient_checkpointing()
+    torch.backends.cuda.matmul.allow_tf32 = True
     pipe.unet.train()
     pipe.text_encoder.train(False)
     pipe.text_encoder_2.train(False)
@@ -257,12 +266,13 @@ def main(argv=None):
             assert time_ids.shape[0] == bsz, f"time_ids batch mismatch: {time_ids.shape[0]} vs {bsz}"
 
             try:
-                model_pred = pipe.unet(
-                    noisy_latents.to(unet_dtype),
-                    timesteps,
-                    prompt_embeds,
-                    added_cond_kwargs={"text_embeds": pooled_embeds, "time_ids": time_ids},
-                ).sample
+                with torch.autocast(device_type="cuda", dtype=unet_dtype):
+                    model_pred = pipe.unet(
+                        noisy_latents.to(unet_dtype),
+                        timesteps,
+                        prompt_embeds,
+                        added_cond_kwargs={"text_embeds": pooled_embeds, "time_ids": time_ids},
+                    ).sample
             except Exception as e:
                 print("DEBUG: Fail context:")
                 print(f"  latents: {latents.shape} {latents.dtype} on {latents.device}")
@@ -292,6 +302,9 @@ def main(argv=None):
 
                 if global_step % 10 == 0:
                     print(f"step {global_step}/{cfg.max_train_steps} loss {loss.item():.4f}")
+
+                if global_step % 20 == 0:
+                    torch.cuda.empty_cache()
 
                 if global_step % max(1, cfg.checkpoint_steps) == 0:
                     ckpt_dir = output_dir / f"ckpt_step_{global_step}"
