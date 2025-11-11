@@ -113,7 +113,7 @@ def _inject_unet_lora(pipe: "StableDiffusionXLPipeline", rank: int = 8) -> int:
             hidden_size = block_out[-1]
 
         if cross_dim is None:
-            procs[name] = LoRAAttnProcessor2_0(hidden_size, rank=rank)
+            procs[name] = LoRAAttnProcessor2_0(hidden_size, None, rank=rank)
         else:
             procs[name] = LoRAAttnProcessor2_0(hidden_size, cross_dim, rank=rank)
 
