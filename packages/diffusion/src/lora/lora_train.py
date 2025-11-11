@@ -1,4 +1,5 @@
 import argparse
+from asyncio.windows_utils import pipe
 import json
 from dataclasses import dataclass, asdict
 from pathlib import Path
@@ -123,17 +124,14 @@ def _encode_prompts(pipe: "StableDiffusionXLPipeline", captions: List[str], devi
 
     return prompt_embeds, pooled
 
-def _sdxl_time_ids(pipe: "StableDiffusionXLPipeline", bsz: int, height: int, width: int, device: str, dtype: torch.dtype,):
-    original_size = (height, width)
-    target_size = (height, width)
-    crop_coords = (0, 0)
+def _sdxl_time_ids(pipe: "StableDiffusionXLPipeline", bsz: int, height: int, width: int, device: str, text_encoder_projection_dim: int):
     add_time_ids = pipe._get_add_time_ids(
-        original_size,
-        crop_coords,
-        target_size,
-        dtype=dtype,
+        (height, width),
+        (0, 0),
+        (height, width),
+        text_encoder_projection_dim=int(text_encoder_projection_dim),
     )
-    return add_time_ids.to(device).repeat(bsz, 1)
+    return torch.tensor(add_time_ids, device=device, dtype=torch.long).unsqueeze(0).repeat(bsz, 1)
 
 def _vae_encode(pipe: "StableDiffusionXLPipeline", imgs: torch.Tensor) -> torch.Tensor:
     imgs = imgs.to(pipe.device, dtype=pipe.vae.dtype)
@@ -224,21 +222,21 @@ def main(argv=None):
             noisy_latents = scheduler.add_noise(latents, noise, timesteps)
             prompt_embeds, pooled_embeds = _encode_prompts(pipe, captions, device=device)
 
+            proj_dim = int(pooled_embeds.shape[-1])
             if getattr(pipe.text_encoder_2.config, "projection_dim", None) is None:
-                pipe.text_encoder_2.config.projection_dim = int(pooled_embeds.shape[-1])
+                pipe.text_encoder_2.config.projection_dim = proj_dim
 
             unet_dtype = next(pipe.unet.parameters()).dtype
             prompt_embeds = prompt_embeds.to(device=device, dtype=unet_dtype)
             pooled_embeds = pooled_embeds.to(device=device, dtype=unet_dtype)
 
-            time_ids = _sdxl_time_ids(pipe, bsz=bsz, height=pixels.shape[-2], width=pixels.shape[-1], device=device, dtype=prompt_embeds.dtype)
+            time_ids = _sdxl_time_ids(pipe, bsz=bsz, height=pixels.shape[-2], width=pixels.shape[-1], device=device, text_encoder_projection_dim=proj_dim)
 
             assert prompt_embeds.ndim == 3, f"prompt_embeds ndim={prompt_embeds.ndim}, shape={prompt_embeds.shape}"
             assert pooled_embeds.ndim == 2, f"pooled_embeds ndim={pooled_embeds.ndim}, shape={pooled_embeds.shape}"
             assert time_ids.dtype == torch.long, f"time_ids dtype={time_ids.dtype} (must be long)"
             assert time_ids.shape[0] == bsz, f"time_ids batch mismatch: {time_ids.shape[0]} vs {bsz}"
 
-            # Forward UNet
             try:
                 model_pred = pipe.unet(
                     noisy_latents.to(unet_dtype),
