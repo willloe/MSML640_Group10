@@ -112,11 +112,10 @@ def _inject_unet_lora(pipe: "StableDiffusionXLPipeline", rank: int = 8) -> int:
         else:
             hidden_size = block_out[-1]
 
-        procs[name] = LoRAAttnProcessor2_0(
-            hidden_size=hidden_size,
-            cross_attention_dim=cross_dim,
-            rank=rank,
-        )
+        if cross_dim is None:
+            procs[name] = LoRAAttnProcessor2_0(hidden_size, rank=rank)
+        else:
+            procs[name] = LoRAAttnProcessor2_0(hidden_size, cross_dim, rank=rank)
 
     unet.set_attn_processor(procs)
     return len(procs)
