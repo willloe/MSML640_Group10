@@ -224,14 +224,39 @@ def main(argv=None):
             noisy_latents = scheduler.add_noise(latents, noise, timesteps)
             prompt_embeds, pooled_embeds = _encode_prompts(pipe, captions, device=device)
 
+            if getattr(pipe.text_encoder_2.config, "projection_dim", None) is None:
+                pipe.text_encoder_2.config.projection_dim = int(pooled_embeds.shape[-1])
+
             unet_dtype = next(pipe.unet.parameters()).dtype
+            prompt_embeds = prompt_embeds.to(device=device, dtype=unet_dtype)
+            pooled_embeds = pooled_embeds.to(device=device, dtype=unet_dtype)
+
             time_ids = _sdxl_time_ids(pipe, bsz=bsz, height=pixels.shape[-2], width=pixels.shape[-1], device=device, dtype=prompt_embeds.dtype)
-            model_pred = pipe.unet(
-                noisy_latents.to(unet_dtype),
-                timesteps,
-                prompt_embeds,
-                added_cond_kwargs={"text_embeds": pooled_embeds, "time_ids": time_ids},
-            ).sample
+
+            assert prompt_embeds.ndim == 3, f"prompt_embeds ndim={prompt_embeds.ndim}, shape={prompt_embeds.shape}"
+            assert pooled_embeds.ndim == 2, f"pooled_embeds ndim={pooled_embeds.ndim}, shape={pooled_embeds.shape}"
+            assert time_ids.dtype == torch.long, f"time_ids dtype={time_ids.dtype} (must be long)"
+            assert time_ids.shape[0] == bsz, f"time_ids batch mismatch: {time_ids.shape[0]} vs {bsz}"
+
+            # Forward UNet
+            try:
+                model_pred = pipe.unet(
+                    noisy_latents.to(unet_dtype),
+                    timesteps,
+                    prompt_embeds,
+                    added_cond_kwargs={"text_embeds": pooled_embeds, "time_ids": time_ids},
+                ).sample
+            except Exception as e:
+                print("DEBUG: Fail context:")
+                print(f"  latents: {latents.shape} {latents.dtype} on {latents.device}")
+                print(f"  noisy_latents: {noisy_latents.shape} {noisy_latents.dtype} on {noisy_latents.device}")
+                print(f"  timesteps: {timesteps.shape} {timesteps.dtype} on {timesteps.device}")
+                print(f"  prompt_embeds: {prompt_embeds.shape} {prompt_embeds.dtype} on {prompt_embeds.device}")
+                print(f"  pooled_embeds: {pooled_embeds.shape} {pooled_embeds.dtype} on {pooled_embeds.device}")
+                print(f"  time_ids: {time_ids.shape} {time_ids.dtype} on {time_ids.device}")
+                proj_dim = getattr(pipe.text_encoder_2.config, 'projection_dim', None)
+                print(f"  projection_dim: {proj_dim}")
+                raise
 
             pred_type = getattr(scheduler.config, "prediction_type", "epsilon")
             if pred_type == "v_prediction" and hasattr(scheduler, "get_velocity"):
