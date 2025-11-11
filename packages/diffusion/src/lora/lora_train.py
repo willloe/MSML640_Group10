@@ -12,10 +12,9 @@ try:
     import numpy as np
 
     from diffusers import StableDiffusionXLPipeline
-    from diffusers.models.attention_processor import LoRAAttnProcessor2_0
     from diffusers.utils import logging as dlogging
+    from peft import LoraConfig
 except Exception as e:
-    # Defer hard failure to a clear check later
     torch = None
     F = None
     Dataset = None
@@ -23,8 +22,8 @@ except Exception as e:
     Image = None
     np = None
     StableDiffusionXLPipeline = None
-    LoRAAttnProcessor2_0 = None
     dlogging = None
+    LoraConfig = None
 
 from .lora_data import build_manifest
 
@@ -49,8 +48,8 @@ def _write_config(cfg: LoraConfig, out_path: Path) -> None:
     out_path.write_text(json.dumps(asdict(cfg), indent=2))
 
 def _assert_reqs():
-    if torch is None or StableDiffusionXLPipeline is None or LoRAAttnProcessor2_0 is None:
-        raise RuntimeError("Required packages not available. Please install: torch, diffusers>=0.24 (LoRAAttnProcessor2_0), transformers, peft, accelerate, safetensors, ")
+    if torch is None or StableDiffusionXLPipeline is None or LoraConfig is None:
+        raise RuntimeError("Required packages not available. Please install: torch, diffusers, transformers, peft, accelerate, safetensors, ")
 
 class JsonlImageDataset(Dataset):
     def __init__(self, jsonl_path: Path, resolution: int = 1024):
@@ -86,46 +85,19 @@ class JsonlImageDataset(Dataset):
         return {"pixel_values": tensor, "caption": caption}
 
 def _inject_unet_lora(pipe: "StableDiffusionXLPipeline", rank: int = 8) -> int:
-    unet = pipe.unet
-    block_out = list(unet.config.block_out_channels)
-    cross_dim_cfg = getattr(unet.config, "cross_attention_dim", None)
-
-    procs = {}
-    for name in unet.attn_processors.keys():
-        is_self_attn = name.endswith("attn1.processor")
-        cross_dim = None if is_self_attn else cross_dim_cfg
-
-        if name.startswith("mid_block"):
-            hidden_size = block_out[-1]
-        elif name.startswith("down_blocks"):
-            try:
-                i = int(name.split(".")[1])
-            except Exception:
-                i = 0
-            hidden_size = block_out[i]
-        elif name.startswith("up_blocks"):
-            try:
-                i = int(name.split(".")[1])
-            except Exception:
-                i = 0
-            hidden_size = list(reversed(block_out))[i]
-        else:
-            hidden_size = block_out[-1]
-
-        procs[name] = (
-            LoRAAttnProcessor2_0(hidden_size)
-            if cross_dim is None
-            else LoRAAttnProcessor2_0(hidden_size, cross_dim)
-        )
-
-    unet.set_attn_processor(procs)
-    return len(procs)
+    pipe.unet.requires_grad_(False)
+    unet_lora_cfg = LoraConfig(
+        r=rank,
+        lora_alpha=rank,
+        init_lora_weights="gaussian",
+        target_modules=["to_q", "to_k", "to_v", "to_out.0"],
+    )
+    pipe.unet.add_adapter(unet_lora_cfg)
+    trainable = sum(p.requires_grad for p in pipe.unet.parameters())
+    return trainable
 
 def _collect_lora_params(pipe: "StableDiffusionXLPipeline"):
-    params = []
-    for _, m in pipe.unet.attn_processors.items():
-        params += [p for p in m.parameters() if p.requires_grad]
-    return params
+    return [p for p in pipe.unet.parameters() if p.requires_grad]
 
 def _encode_prompts(pipe: "StableDiffusionXLPipeline", captions: List[str], device: str):
     enc = pipe.encode_prompt(
@@ -200,7 +172,7 @@ def main(argv=None):
     pipe.vae.train(False)
 
     injected = _inject_unet_lora(pipe, rank=cfg.rank)
-    print(f"Injected LoRA into {injected} UNet attention processors (rank={cfg.rank})")
+    print(f"Injected LoRA adapters; trainable_param_flags={injected}")
 
     lora_params = _collect_lora_params(pipe)
     opt = torch.optim.AdamW(lora_params, lr=cfg.lr)
@@ -254,7 +226,7 @@ def main(argv=None):
                 if global_step % max(1, cfg.checkpoint_steps) == 0:
                     ckpt_dir = output_dir / f"ckpt_step_{global_step}"
                     ckpt_dir.mkdir(parents=True, exist_ok=True)
-                    pipe.unet.save_attn_procs(ckpt_dir)
+                    pipe.save_lora_weights(ckpt_dir, weight_name="pytorch_lora_weights.safetensors")
                     print(f"Saved LoRA checkpoint to {ckpt_dir}")
 
                 if global_step >= cfg.max_train_steps:
@@ -262,7 +234,7 @@ def main(argv=None):
 
     final_dir = output_dir / "final_lora"
     final_dir.mkdir(parents=True, exist_ok=True)
-    pipe.unet.save_attn_procs(final_dir)
+    pipe.save_lora_weights(final_dir, weight_name="pytorch_lora_weights.safetensors")
     print(f"Saved final LoRA weights to {final_dir}")
     print("Training complete.")
     return 0
