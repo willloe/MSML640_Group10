@@ -14,12 +14,9 @@ class TrainingDataPreparer:
         self.label_mapping = {
             'Title': 0,
             'Caption': 1,
-            'Text': 2,
-            'Paragraph': 3,
-            'TextBox': 4,
-            'Heading': 5,
-            'Label': 6,
-            'PageNumber': 7
+            'Obj-text': 2,
+            'Other-text': 3,
+            'Page-text': 4,
         }
         
     def load_metadata(self):
