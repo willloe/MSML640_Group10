@@ -96,51 +96,45 @@ def _collect_lora_params(pipe: "StableDiffusionXLPipeline"):
     return [p for p in pipe.unet.parameters() if p.requires_grad]
 
 def _encode_prompts(pipe: "StableDiffusionXLPipeline", captions: List[str], device: str):
-    out = pipe.encode_prompt(
-        prompt=captions,
-        device=device,
-        num_images_per_prompt=1,
-        do_classifier_free_guidance=False,
-    )
+    with torch.no_grad():
+        out = pipe.encode_prompt(
+            prompt=captions,
+            device=device,
+            num_images_per_prompt=1,
+            do_classifier_free_guidance=False,
+        )
 
     if isinstance(out, tuple):
-        if len(out) >= 2:
-            prompt_embeds, pooled = out[0], out[1]
-        else:
-            prompt_embeds, pooled = out[0], None
+        prompt_embeds, pooled = out[0], out[1]
     else:
         prompt_embeds, pooled = out, None
 
-    if pooled is None:
-        neg = [""] * len(captions)
-        prompt_embeds, _, pooled, _ = pipe.encode_prompt(
-            prompt=captions,
-            negative_prompt=neg,
-            device=device,
-            num_images_per_prompt=1,
-            do_classifier_free_guidance=True,
+    if pooled is None or pooled.ndim != 2:
+        raise RuntimeError(
+            f"Expected pooled_embeds [B, D] from SDXL encode_prompt; got {None if pooled is None else pooled.shape}"
         )
 
     return prompt_embeds, pooled
 
-def _sdxl_time_ids(pipe: "StableDiffusionXLPipeline", bsz: int, height: int, width: int, device: str, dtype, text_encoder_projection_dim: int):
+def _sdxl_time_ids(pipe: "StableDiffusionXLPipeline", bsz: int, height: int, width: int, device: str, text_encoder_projection_dim: int):
     add_time_ids = pipe._get_add_time_ids(
         (height, width),
         (0, 0),
         (height, width),
-        dtype=dtype,
+        dtype=torch.long,
         text_encoder_projection_dim=int(text_encoder_projection_dim),
     )
     if not torch.is_tensor(add_time_ids):
-        add_time_ids = torch.tensor(add_time_ids, device=device, dtype=dtype)
+        add_time_ids = torch.tensor(add_time_ids, device=device, dtype=torch.long)
     else:
-        add_time_ids = add_time_ids.to(device=device, dtype=dtype)
+        add_time_ids = add_time_ids.to(device=device, dtype=torch.long)
     return add_time_ids.repeat(bsz, 1)
 
 def _vae_encode(pipe: "StableDiffusionXLPipeline", imgs: torch.Tensor) -> torch.Tensor:
-    imgs = imgs.to(pipe.device, dtype=pipe.vae.dtype)
-    posterior = pipe.vae.encode(imgs).latent_dist
-    latents = posterior.sample() * pipe.vae.config.scaling_factor
+    with torch.no_grad():
+        imgs = imgs.to(pipe.device, dtype=pipe.vae.dtype)
+        posterior = pipe.vae.encode(imgs).latent_dist
+        latents = posterior.sample() * pipe.vae.config.scaling_factor
     return latents
 
 def main(argv=None):
@@ -150,7 +144,7 @@ def main(argv=None):
     ap.add_argument("--output_dir", default="outputs/lora/runs/exp01")
     ap.add_argument("--resolution", type=int, default=512)
     ap.add_argument("--rank", type=int, default=8)
-    ap.add_argument("--lr", type=float, default=5e-6)
+    ap.add_argument("--lr", type=float, default=1e-5)
     ap.add_argument("--batch_size", type=int, default=1)
     ap.add_argument("--gradient_accumulation_steps", type=int, default=1)
     ap.add_argument("--max_train_steps", type=int, default=50)
@@ -195,7 +189,7 @@ def main(argv=None):
 
     pipe = StableDiffusionXLPipeline.from_pretrained(cfg.model_id, torch_dtype=dtype)
     pipe.to(device)
-    pipe.unet.enable_gradient_checkpointing()
+    pipe.enable_attention_slicing()
     pipe.enable_vae_slicing()
     pipe.enable_vae_tiling()
     try:
@@ -262,18 +256,23 @@ def main(argv=None):
                 height=pixels.shape[-2],
                 width=pixels.shape[-1],
                 device=device,
-                dtype=prompt_embeds.dtype,
                 text_encoder_projection_dim=proj_dim_target,
             )
             assert prompt_embeds.ndim == 3, f"prompt_embeds ndim={prompt_embeds.ndim}, shape={prompt_embeds.shape}"
             assert pooled_embeds.ndim == 2, f"pooled_embeds ndim={pooled_embeds.ndim}, shape={pooled_embeds.shape}"
-            assert time_ids.dtype == prompt_embeds.dtype, (
-                f"time_ids dtype={time_ids.dtype} must match prompt_embeds dtype={prompt_embeds.dtype}"
-            )
+            assert time_ids.dtype == torch.long, f"time_ids dtype={time_ids.dtype} must be torch.long"
             assert time_ids.shape[0] == bsz, f"time_ids batch mismatch: {time_ids.shape[0]} vs {bsz}"
 
             try:
-                with torch.autocast(device_type="cuda", dtype=unet_dtype):
+                if device == "cuda":
+                    with torch.autocast(device_type="cuda", dtype=unet_dtype):
+                        model_pred = pipe.unet(
+                            noisy_latents.to(unet_dtype),
+                            timesteps,
+                            prompt_embeds,
+                            added_cond_kwargs={"text_embeds": pooled_embeds, "time_ids": time_ids},
+                        ).sample
+                else:
                     model_pred = pipe.unet(
                         noisy_latents.to(unet_dtype),
                         timesteps,
