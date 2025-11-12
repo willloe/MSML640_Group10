@@ -105,14 +105,34 @@ def _encode_prompts(pipe: "StableDiffusionXLPipeline", captions: List[str], devi
         )
 
     if isinstance(out, tuple):
-        prompt_embeds, pooled = out[0], out[1]
+        prompt_embeds = out[0]
+        pooled = out[1] if len(out) >= 2 else None
     else:
         prompt_embeds, pooled = out, None
 
-    if pooled is None or pooled.ndim != 2:
-        raise RuntimeError(
-            f"Expected pooled_embeds [B, D] from SDXL encode_prompt; got {None if pooled is None else pooled.shape}"
-        )
+    if pooled is None:
+        with torch.no_grad():
+            tok2 = pipe.tokenizer_2(
+                captions,
+                padding="max_length",
+                max_length=pipe.tokenizer_2.model_max_length,
+                truncation=True,
+                return_tensors="pt",
+            )
+            tok2 = {k: v.to(device) for k, v in tok2.items()}
+            te2_out = pipe.text_encoder_2(**tok2)
+            pooled = getattr(te2_out, "pooled_output", None)
+            if pooled is None and isinstance(te2_out, (tuple, list)) and len(te2_out) > 1:
+                pooled = te2_out[1]
+
+    if pooled is None:
+        raise RuntimeError("Unable to obtain pooled_embeds from text_encoder_2.")
+    if pooled.ndim == 3 and pooled.shape[1] == 1:
+        pooled = pooled.squeeze(1)
+    if pooled.ndim == 3 and pooled.shape[1] > 1:
+        pooled = pooled.mean(dim=1)
+    if pooled.ndim != 2:
+        raise RuntimeError(f"Expected pooled_embeds [B, D]; got {pooled.shape}")
 
     return prompt_embeds, pooled
 
