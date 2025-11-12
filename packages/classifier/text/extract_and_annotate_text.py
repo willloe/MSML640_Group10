@@ -8,8 +8,7 @@ import random
 
 # Include text-related classes
 TEXT_CLASSES = {
-    'Text', 'Title', 'Paragraph', 'TextBox', 
-    'Caption', 'Label', 'Heading', 'PageNumber'
+    'Title', 'Caption', 'Obj-text', 'Other-text', 'Page-text'
 }
 
 
@@ -75,7 +74,7 @@ def create_filename(dn, si, url):
     safe = dn.replace('/', '_').replace('\\', '_')
     return f"{safe}_slide{si:03d}_{h}.jpg"
 
-def process_dataset_sample(ann_dir, out_dir, max_imgs=50, seed=42):
+def process_dataset_sample(ann_dir, out_dir, max_imgs=None, seed=42):
     random.seed(seed)
 
     out_dir.mkdir(exist_ok=True, parents=True)
@@ -110,18 +109,37 @@ def process_dataset_sample(ann_dir, out_dir, max_imgs=50, seed=42):
 
     ok = 0
     fail = 0
-    meta = []
-    
-    for sd in tqdm(all_slides):
-        try:
-            img = download_image(sd['image_url'])
-            fn = create_filename(sd['deck_name'], sd['slide_idx'], sd['image_url'])
-            
-            img.save(out_dir / 'raw_images' / fn)
+    meta_path = out_dir / 'sample_metadata.json'
+    # Load existing metadata if present
+    if meta_path.exists():
+        with open(meta_path, 'r') as f:
+            meta = json.load(f)
+        existing_filenames = set(m['filename'] for m in meta)
+    else:
+        meta = []
+        existing_filenames = set()
 
-            ann = draw_bboxes(img.copy(), sd['bboxes'])
-            ann.save(out_dir / 'annotated' / fn)
-            
+    for sd in tqdm(all_slides):
+        fn = create_filename(sd['deck_name'], sd['slide_idx'], sd['image_url'])
+        if fn in existing_filenames:
+            continue  # Skip if already processed
+
+        try:
+            raw_img_path = out_dir / 'raw_images' / fn
+            ann_img_path = out_dir / 'annotated' / fn
+
+            # Download only if not present
+            if not raw_img_path.exists():
+                img = download_image(sd['image_url'])
+                img.save(raw_img_path)
+            else:
+                img = Image.open(raw_img_path)
+
+            # Annotate only if not present
+            if not ann_img_path.exists():
+                ann = draw_bboxes(img.copy(), sd['bboxes'])
+                ann.save(ann_img_path)
+
             meta.append({
                 'filename': fn,
                 'deck_name': sd['deck_name'],
@@ -132,9 +150,14 @@ def process_dataset_sample(ann_dir, out_dir, max_imgs=50, seed=42):
                 'num_bboxes': len(sd['bboxes'])
             })
             ok += 1
-            
+
+            # Save metadata incrementally after each slide
+            if ok % 1 == 0:
+                with open(meta_path, 'w') as f:
+                    json.dump(meta, f, indent=2)
+
         except Exception as e:
-            print(f"\nFailed to download {sd['image_url']}: {e}")
+            print(f"\nFailed to process {sd['image_url']}: {e}")
             fail += 1
 
     with open(out_dir / 'sample_metadata.json', 'w') as f:
@@ -157,7 +180,7 @@ def main():
     out_dir = p / 'sample_data'  
     
     # Processing only 50 images for quick testing
-    process_dataset_sample(ann_dir, out_dir, max_imgs=50, seed=42)
+    process_dataset_sample(ann_dir, out_dir, seed=42)
 
 if __name__ == '__main__':
     main()
