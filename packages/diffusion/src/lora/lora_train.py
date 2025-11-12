@@ -150,7 +150,7 @@ def main(argv=None):
     ap.add_argument("--output_dir", default="outputs/lora/runs/exp01")
     ap.add_argument("--resolution", type=int, default=512)
     ap.add_argument("--rank", type=int, default=8)
-    ap.add_argument("--lr", type=float, default=1e-4)
+    ap.add_argument("--lr", type=float, default=5e-6)
     ap.add_argument("--batch_size", type=int, default=1)
     ap.add_argument("--gradient_accumulation_steps", type=int, default=1)
     ap.add_argument("--max_train_steps", type=int, default=50)
@@ -195,6 +195,7 @@ def main(argv=None):
 
     pipe = StableDiffusionXLPipeline.from_pretrained(cfg.model_id, torch_dtype=dtype)
     pipe.to(device)
+    pipe.unet.enable_gradient_checkpointing()
     pipe.enable_vae_slicing()
     pipe.enable_vae_tiling()
     try:
@@ -213,7 +214,13 @@ def main(argv=None):
     print(f"Injected LoRA adapters; trainable_param_flags={injected}")
 
     lora_params = _collect_lora_params(pipe)
-    opt = torch.optim.AdamW(lora_params, lr=cfg.lr)
+    opt = torch.optim.AdamW(
+        lora_params,
+        lr=cfg.lr,
+        betas=(0.9, 0.999),
+        eps=1e-8,
+        weight_decay=0.0,
+    )
     ds = JsonlImageDataset(Path(cfg.train_jsonl), resolution=cfg.resolution)
     dl = DataLoader(ds, batch_size=cfg.batch_size, shuffle=True, num_workers=0, drop_last=True)
 
@@ -292,10 +299,15 @@ def main(argv=None):
                 target = noise
 
             loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
+            if not torch.isfinite(loss):
+                print(f"WARNING: non-finite loss detected ({loss.item()}); skipping step.")
+                opt.zero_grad(set_to_none=True)
+                continue
             (loss / cfg.gradient_accumulation_steps).backward()
             accum += 1
 
             if accum % cfg.gradient_accumulation_steps == 0:
+                torch.nn.utils.clip_grad_norm_(lora_params, max_norm=1.0)
                 opt.step()
                 opt.zero_grad(set_to_none=True)
                 global_step += 1
