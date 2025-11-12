@@ -110,7 +110,6 @@ def _encode_prompts(pipe: "StableDiffusionXLPipeline", captions: List[str], devi
     else:
         prompt_embeds, pooled = out, None
 
-    if pooled is None:
         with torch.no_grad():
             tok2 = pipe.tokenizer_2(
                 captions,
@@ -120,13 +119,19 @@ def _encode_prompts(pipe: "StableDiffusionXLPipeline", captions: List[str], devi
                 return_tensors="pt",
             )
             tok2 = {k: v.to(device) for k, v in tok2.items()}
-            te2_out = pipe.text_encoder_2(**tok2)
-            pooled = getattr(te2_out, "pooled_output", None)
-            if pooled is None and isinstance(te2_out, (tuple, list)) and len(te2_out) > 1:
-                pooled = te2_out[1]
+            te2_out = pipe.text_encoder_2(**tok2, output_hidden_states=False, return_dict=True)
 
-    if pooled is None:
-        raise RuntimeError("Unable to obtain pooled_embeds from text_encoder_2.")
+            last_hidden = te2_out.last_hidden_state
+            if last_hidden is None:
+                raise RuntimeError("text_encoder_2 returned no last_hidden_state")
+
+            cls = last_hidden[:, 0, :]
+
+            if hasattr(pipe.text_encoder_2, "text_projection") and pipe.text_encoder_2.text_projection is not None:
+                pooled = pipe.text_encoder_2.text_projection(cls)
+            else:
+                pooled = last_hidden.mean(dim=1)
+
     if pooled.ndim == 3 and pooled.shape[1] == 1:
         pooled = pooled.squeeze(1)
     if pooled.ndim == 3 and pooled.shape[1] > 1:
