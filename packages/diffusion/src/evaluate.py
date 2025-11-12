@@ -105,7 +105,67 @@ def layout_safety(
     threshold: float = 0.1
 ) -> Dict[str, float]:
 
-    raise NotImplementedError("layout_safety will be implemented later")
+    if isinstance(generated_image, (str, Path)):
+        img = Image.open(generated_image).convert('RGB')
+    elif isinstance(generated_image, Image.Image):
+        img = generated_image.convert('RGB')
+    elif isinstance(generated_image, np.ndarray):
+        if generated_image.dtype == np.uint8 and len(generated_image.shape) == 3:
+            img = Image.fromarray(generated_image, mode='RGB')
+        else:
+            raise ValueError("Array uint8 not with shape (H, W, 3)")
+    else:
+        raise TypeError(f"Unsupported image: {type(generated_image)}")
+
+    img_array = np.array(img)
+
+    if len(control_map.shape) == 3:
+        element_mask = control_map[0]  # Shape: (H, W)
+    else:
+        raise ValueError(f"Control map need shape (4, H, W), instead of {control_map.shape}")
+
+    if element_mask.shape != img_array.shape[:2]:
+        element_mask_img = Image.fromarray((element_mask * 255).astype(np.uint8))
+        element_mask_resized = element_mask_img.resize(
+            (img_array.shape[1], img_array.shape[0]),
+            Image.Resampling.NEAREST
+        )
+        element_mask = np.array(element_mask_resized) / 255.0
+
+    img_gray = np.mean(img_array.astype(np.float32) / 255.0, axis=2)
+
+    neutral_value = 245.0 / 255.0
+    content_intensity = np.abs(img_gray - neutral_value)
+
+    reserved_mask = element_mask > 0.5
+    safe_zone_mask = element_mask <= 0.5
+
+    total_pixels = element_mask.size
+    reserved_pixels = np.sum(reserved_mask)
+    safe_zone_pixels = np.sum(safe_zone_mask)
+
+    overlap_mask = reserved_mask & (content_intensity > threshold)
+    overlap_pixels = np.sum(overlap_mask)
+
+    reserved_percent = (reserved_pixels / total_pixels) * 100.0
+    safe_zone_percent = (safe_zone_pixels / total_pixels) * 100.0
+
+    if reserved_pixels > 0:
+        reserved_overlap_percent = (overlap_pixels / reserved_pixels) * 100.0
+        mean_overlap = float(np.mean(content_intensity[reserved_mask]))
+    else:
+        reserved_overlap_percent = 0.0
+        mean_overlap = 0.0
+
+    return {
+        'reserved_overlap_percent': float(reserved_overlap_percent),
+        'mean_overlap': float(mean_overlap),
+        'safe_zone_percent': float(safe_zone_percent),
+        'reserved_percent': float(reserved_percent),
+        'overlap_pixels': int(overlap_pixels),
+        'reserved_pixels': int(reserved_pixels),
+        'total_pixels': int(total_pixels)
+    }
 
 
 if __name__ == "__main__":
