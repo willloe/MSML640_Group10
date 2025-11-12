@@ -1,0 +1,3 @@
+image,text_size,pass_rate,passes,total,threshold,mean_contrast,min_contrast,max_contrast
+gen_masked.png,normal,1.0000,100,100,4.5,7.16,4.62,16.09
+gen_masked.png,large,1.0000,100,100,3.0,7.16,4.62,16.09
