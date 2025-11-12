@@ -2,7 +2,7 @@ import numpy as np
 import json
 import pickle
 from pathlib import Path
-from sklearn.ensemble import RandomForestClassifier, GradientBoostingClassifier
+from sklearn.ensemble import RandomForestClassifier
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report, confusion_matrix, accuracy_score
@@ -33,12 +33,6 @@ class TextTypeClassifierTrainer:
         return X_train, X_test, y_train, y_test, label_mapping, feature_names
     
     def train_model(self, X_train, y_train, model_type='random_forest'):
-        """
-        Train a classifier model
-        
-        Args:
-            model_type: 'random_forest', 'gradient_boosting', or 'svm'
-        """
         # Normalize features
         X_train_scaled = self.scaler.fit_transform(X_train)
         
@@ -52,13 +46,6 @@ class TextTypeClassifierTrainer:
                 min_samples_leaf=2,
                 random_state=42,
                 n_jobs=-1
-            )
-        elif model_type == 'gradient_boosting':
-            self.model = GradientBoostingClassifier(
-                n_estimators=100,
-                max_depth=5,
-                learning_rate=0.1,
-                random_state=42
             )
         elif model_type == 'svm':
             self.model = SVC(
@@ -77,7 +64,6 @@ class TextTypeClassifierTrainer:
         return self.model
     
     def evaluate_model(self, X_test, y_test, label_mapping):
-        """Evaluate the trained model"""
         X_test_scaled = self.scaler.transform(X_test)
         
         # Predictions
@@ -87,9 +73,8 @@ class TextTypeClassifierTrainer:
         # Metrics
         accuracy = accuracy_score(y_test, y_pred)
         
-        print(f"\n{'='*60}")
         print("EVALUATION RESULTS")
-        print('='*60)
+        print('-'*60)
         print(f"Test Accuracy: {accuracy:.4f}")
         
         # Reverse label mapping
@@ -117,10 +102,8 @@ class TextTypeClassifierTrainer:
         }
     
     def plot_confusion_matrix(self, cm, label_mapping, output_path, unique_labels=None):
-        """Plot and save confusion matrix"""
+
         id_to_label = {v: k for k, v in label_mapping.items()}
-        
-        # Use only labels present in the data
         if unique_labels is not None:
             labels = [id_to_label[i] for i in unique_labels]
         else:
@@ -140,7 +123,6 @@ class TextTypeClassifierTrainer:
         plt.close()
     
     def plot_feature_importance(self, feature_names, output_path, top_n=15):
-        """Plot feature importance (for tree-based models)"""
         if not hasattr(self.model, 'feature_importances_'):
             print("Feature importance not available for this model type")
             return
@@ -159,7 +141,6 @@ class TextTypeClassifierTrainer:
         plt.close()
     
     def save_model(self, output_dir):
-        """Save the trained model and scaler"""
         output_dir = Path(output_dir)
         output_dir.mkdir(exist_ok=True, parents=True)
         
@@ -183,8 +164,7 @@ def main():
     # Load data
     X_train, X_test, y_train, y_test, label_mapping, feature_names = trainer.load_data()
     
-    # Train model (try different models)
-    model_type = 'random_forest'  # or 'gradient_boosting' or 'svm'
+    model_type = 'random_forest'  # or 'svm'
     trainer.train_model(X_train, y_train, model_type=model_type)
     
     # Evaluate
@@ -203,12 +183,8 @@ def main():
         plots_dir / 'feature_importance.png'
     )
     
-    # Save model
     trainer.save_model(model_dir)
-    
-    print(f"\n{'='*60}")
     print("TRAINING COMPLETE!")
-    print('='*60)
 
 
 if __name__ == '__main__':
