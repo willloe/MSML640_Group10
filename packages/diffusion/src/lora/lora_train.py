@@ -309,7 +309,7 @@ def main(argv=None):
                 if global_step % max(1, cfg.checkpoint_steps) == 0:
                     ckpt_dir = output_dir / f"ckpt_step_{global_step}"
                     ckpt_dir.mkdir(parents=True, exist_ok=True)
-                    pipe.save_lora_weights(ckpt_dir, weight_name="pytorch_lora_weights.safetensors")
+                    pipe.save_lora_weights(ckpt_dir, unet_lora_layers=pipe.unet, weight_name="pytorch_lora_weights.safetensors")
                     print(f"Saved LoRA checkpoint to {ckpt_dir}")
 
                 if global_step >= cfg.max_train_steps:
@@ -317,7 +317,7 @@ def main(argv=None):
 
     final_dir = output_dir / "final_lora"
     final_dir.mkdir(parents=True, exist_ok=True)
-    pipe.save_lora_weights(final_dir, weight_name="pytorch_lora_weights.safetensors")
+    pipe.save_lora_weights(final_dir, unet_lora_layers=pipe.unet, weight_name="pytorch_lora_weights.safetensors")
     print(f"Saved final LoRA weights to {final_dir}")
     print("Training complete.")
     return 0
