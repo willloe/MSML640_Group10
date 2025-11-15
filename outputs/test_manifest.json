@@ -1,0 +1,48 @@
+{
+  "folder": "C:\\Users\\hengm\\Desktop\\MSML 640\\Group Project\\Final\\MSML640_Group10\\outputs",
+  "num_images": 6,
+  "images": [
+    {
+      "path": "control_map_00.png",
+      "tags": [
+        "control",
+        "map"
+      ]
+    },
+    {
+      "path": "control_map_00.png",
+      "tags": [
+        "control",
+        "map"
+      ]
+    },
+    {
+      "path": "control_map_01.png",
+      "tags": [
+        "control",
+        "map"
+      ]
+    },
+    {
+      "path": "control_map_01.png",
+      "tags": [
+        "control",
+        "map"
+      ]
+    },
+    {
+      "path": "gen_masked.png",
+      "tags": [
+        "gen",
+        "masked"
+      ]
+    },
+    {
+      "path": "gen_masked.png",
+      "tags": [
+        "gen",
+        "masked"
+      ]
+    }
+  ]
+}
