@@ -17,6 +17,7 @@ try:
     from diffusers import StableDiffusionXLPipeline
     from diffusers.utils import logging as dlogging
     from peft import LoraConfig as PeftLoraConfig
+    from peft.tuners.lora import LoraLayer
 except Exception as e:
     torch = None
     F = None
@@ -27,6 +28,7 @@ except Exception as e:
     StableDiffusionXLPipeline = None
     dlogging = None
     PeftLoraConfig = None
+    LoraLayer = None
 
 from .lora_data import build_manifest
 
@@ -193,6 +195,22 @@ def _vae_encode(pipe: "StableDiffusionXLPipeline", imgs: torch.Tensor) -> torch.
         posterior = pipe.vae.encode(imgs).latent_dist
         latents = posterior.sample() * pipe.vae.config.scaling_factor
     return latents
+
+def _save_unet_lora_peft(pipe, save_dir: Path) -> Path:
+    import torch
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    lora_state = {}
+    for name, module in pipe.unet.named_modules():
+        if isinstance(module, LoraLayer):
+            for k, v in module.state_dict().items():
+                key = f"{name}.{k}"
+                lora_state[key] = v.detach().cpu()
+
+    out_path = save_dir / "unet_lora_peft.pt"
+    torch.save(lora_state, out_path)
+    return out_path
+
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description="LoRA Train (minimal) for SDXL UNet.")
@@ -395,28 +413,13 @@ def main(argv=None):
                 if global_step % 20 == 0:
                     torch.cuda.empty_cache()
 
-                if cfg.checkpoint_steps > 0 and global_step % cfg.checkpoint_steps == 0 and global_step < cfg.max_train_steps:
-                    ckpt_dir = output_dir / f"ckpt_step_{global_step}"
-                    ckpt_dir.mkdir(parents=True, exist_ok=True)
-                    pipe.save_lora_weights(
-                        ckpt_dir,
-                        unet_lora_layers=pipe.unet,
-                        weight_name="pytorch_lora_weights.safetensors",
-                    )
-                    print(f"Saved LoRA checkpoint to {ckpt_dir}")
-
                 if global_step >= cfg.max_train_steps:
                     if device == "cuda":
                         opt.zero_grad(set_to_none=True)
                         torch.cuda.empty_cache()
 
                     final_dir = output_dir / "final_lora"
-                    final_dir.mkdir(parents=True, exist_ok=True)
-                    pipe.save_lora_weights(
-                        final_dir,
-                        unet_lora_layers=pipe.unet,
-                        weight_name="pytorch_lora_weights.safetensors",
-                    )
+                    out_path = _save_unet_lora_peft(pipe, final_dir)
                     print(f"Saved final LoRA weights to {final_dir}")
                     print("Training complete.")
                     return 0
