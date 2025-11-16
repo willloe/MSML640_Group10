@@ -294,10 +294,12 @@ def main(argv=None):
             captions = batch["caption"]
 
             latents = _vae_encode(pipe, pixels)
-            noise_offset = 0.1
+            # noise_offset = 0.1
+            # noise = torch.randn_like(latents)
+            # if noise_offset > 0:
+            #     noise = noise + noise_offset * torch.randn_like(noise)
             noise = torch.randn_like(latents)
-            if noise_offset > 0:
-                noise = noise + noise_offset * torch.randn_like(noise)
+
             bsz = latents.shape[0]
             timesteps = torch.randint(0, scheduler.config.num_train_timesteps, (bsz,), device=device).long()
             timestep_dtype = next(pipe.unet.parameters()).dtype
@@ -370,12 +372,15 @@ def main(argv=None):
             pred_type = getattr(scheduler.config, "prediction_type", "epsilon")
             target = scheduler.get_velocity(latents, noise, timesteps) if (pred_type == "v_prediction" and hasattr(scheduler, "get_velocity")) else noise
 
-            snr_gamma = 5.0
-            with torch.no_grad():
-                alphas_cumprod = scheduler.alphas_cumprod.to(device)[timesteps.long().cpu()].to(device)
-            snr = alphas_cumprod / (1 - alphas_cumprod)
-            weight = (snr_gamma / (snr + 1)).view(-1, *([1] * (model_pred.ndim - 1))).to(model_pred.dtype)
+            # snr_gamma = 5.0
+            # with torch.no_grad():
+            #     alphas_cumprod = scheduler.alphas_cumprod.to(device)[timesteps.long().cpu()].to(device)
+            # snr = alphas_cumprod / (1 - alphas_cumprod)
+            # weight = (snr_gamma / (snr + 1)).view(-1, *([1] * (model_pred.ndim - 1))).to(model_pred.dtype)
 
+            # loss = (weight * (model_pred.float() - target.float())**2).mean()
+
+            weight = torch.ones_like(model_pred, dtype=torch.float32)
             loss = (weight * (model_pred.float() - target.float())**2).mean()
             if not torch.isfinite(loss):
                 print(f"WARNING: non-finite loss detected ({loss.item()}); skipping step.")
