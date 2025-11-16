@@ -16,6 +16,14 @@ def train_model(model, loader, optimizer, device, scaler=None):
     correct = 0
     total   = 0
 
+    # float16 for CUDA, bfloat16 for MPS
+    if device.type == "cuda":
+        amp_dtype = torch.float16
+    elif device.type == "mps":
+        amp_dtype = torch.bfloat16
+    else:
+        amp_dtype = None
+
     # training loop
     for images, labels in tqdm(loader, desc="Train Model", leave=False):
 
@@ -26,7 +34,11 @@ def train_model(model, loader, optimizer, device, scaler=None):
 
         # NOTE: torch.cuda.amp.autocast is deprecated, use torch.amp.autocast
         # forward pass
-        with torch.amp.autocast('cuda', enabled=(scaler is not None)):
+        if amp_dtype:
+            with torch.amp.autocast(device_type=device.type, dtype=amp_dtype):
+                logits = model(images)
+                loss   = F.cross_entropy(logits, labels)
+        else:
             logits = model(images)
             loss   = F.cross_entropy(logits, labels)
 
@@ -74,13 +86,15 @@ def evaluate_model(model, loader, device, classes):
 
 if __name__ == "__main__":
 
-    # for CUDA acceleration
-    # device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    # for CUDA acceleration and MacOS with Metal Performance Shaders (MPS) backend
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
 
-    # for MacOS with Metal Performance Shaders (MPS) backend
-    device = torch.device("mps" if torch.cuda.is_available() else "cpu")
-
-    print(f"device: {device}")
+    print(f"Using device: {device}")
 
     save_path = "results"
     os.makedirs(save_path, exist_ok=True)
@@ -152,7 +166,10 @@ if __name__ == "__main__":
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate)
 
     # NOTE: torch.cuda.amp.GradScaler is deprecated, use torch.amp.GradScaler
-    scaler = torch.amp.GradScaler('cuda') if (is_mixed_precision and device.type == "cuda") else None
+    if is_mixed_precision and device.type == "cuda":
+        scaler = torch.amp.GradScaler(device.type)
+    else:
+        scaler = None
 
     best_accuracy = 0.0
     for epoch in range(1, num_of_epochs + 1):
