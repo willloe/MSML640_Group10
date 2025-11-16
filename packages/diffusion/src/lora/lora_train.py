@@ -208,6 +208,7 @@ def main(argv=None):
     ap.add_argument("--train_jsonl", default=None, help="If absent, create in <output_dir>/manifests/captions.jsonl from --images_dir.")
     ap.add_argument("--fallback_caption", default=None)
     args = ap.parse_args(argv)
+    print("Entered main(), parsed args:", args, flush=True)
 
     _assert_reqs()
     if dlogging:
@@ -215,6 +216,7 @@ def main(argv=None):
     random.seed(int(args.seed))
     np.random.seed(int(args.seed))
     torch.manual_seed(int(args.seed))
+    print("Requirements OK, seeds set.", flush=True)
 
     output_dir = Path(args.output_dir).resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -225,6 +227,7 @@ def main(argv=None):
     if not args.train_jsonl:
         images_dir = Path(args.images_dir).resolve()
         build_manifest(images_dir, train_jsonl, fallback_caption=args.fallback_caption)
+        print(f"Building manifest from images_dir={images_dir}", flush=True)
 
     cfg = LoraTrainConfig(
         model_id=args.model_id,
@@ -240,15 +243,18 @@ def main(argv=None):
         seed=int(args.seed),
     )
     _write_config(cfg, output_dir / "lora_config.json")
+    print("Training LoRA with config:", cfg, flush=True)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
     dtype = torch.float16 if device == "cuda" else torch.float32
+    print(f"Using device={device}, dtype={dtype}", flush=True)
 
     pipe = StableDiffusionXLPipeline.from_pretrained(cfg.model_id, torch_dtype=dtype)
     pipe.to(device)
     pipe.enable_attention_slicing()
     pipe.enable_vae_slicing()
     pipe.enable_vae_tiling()
+    print("Loaded model.", flush=True)
     try:
         pipe.enable_xformers_memory_efficient_attention()
     except Exception:
@@ -274,6 +280,7 @@ def main(argv=None):
     )
     ds = JsonlImageDataset(Path(cfg.train_jsonl), resolution=cfg.resolution)
     dl = DataLoader(ds, batch_size=cfg.batch_size, shuffle=True, num_workers=0, drop_last=True, pin_memory=(device == "cuda"))
+    print(f"DataLoader created with {len(ds)} items.", flush=True)
 
     scheduler = pipe.scheduler
     global_step = 0
@@ -282,6 +289,7 @@ def main(argv=None):
 
     while global_step < cfg.max_train_steps:
         for batch in dl:
+            print(f"Global step {global_step}, accumulation {accum}", flush=True)
             pixels = batch["pixel_values"].to(device, dtype=dtype)
             captions = batch["caption"]
 
@@ -296,7 +304,9 @@ def main(argv=None):
             t = timesteps.to(device=device, dtype=timestep_dtype)
 
             noisy_latents = scheduler.add_noise(latents, noise, timesteps)
+            print("encoding prompts...")
             prompt_embeds, pooled_embeds = _encode_prompts(pipe, captions, device=device)
+            print("prompt_embeds:", prompt_embeds.shape, prompt_embeds.dtype)
 
             proj_dim_target = getattr(pipe.text_encoder_2.config, "projection_dim", None)
             if proj_dim_target is None:
