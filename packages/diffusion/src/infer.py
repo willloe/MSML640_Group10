@@ -4,6 +4,8 @@ import torch
 from PIL import Image, ImageDraw, ImageFilter, ImageChops
 import numpy as np
 
+from peft import LoraConfig as PeftLoraConfig
+from peft.tuners.lora import LoraLayer
 try:
     from sdxl import load_sdxl_with_lora, prompt_from_palette, _set_scheduler as _sdxl_set_scheduler
 except Exception:
@@ -31,12 +33,37 @@ except Exception:
         sys.path.append(str(ROOT))
     from generate import apply_safe_zone_mask
 
-# Delay heavy imports
 try:
-    from diffusers import ControlNetModel, StableDiffusionXLControlNetPipeline
+    from diffusers import ControlNetModel, StableDiffusionXLControlNetPipeline, StableDiffusionXLPipeline
 except Exception:
     ControlNetModel = None
     StableDiffusionXLControlNetPipeline = None
+    StableDiffusionXLPipeline = None
+
+def _inject_unet_lora(pipe, rank: int = 8) -> None:
+    pipe.unet.requires_grad_(False)
+    cfg = PeftLoraConfig(
+        r=rank,
+        lora_alpha=rank * 2,
+        lora_dropout=0.0,
+        bias="none",
+        target_modules=["to_q", "to_k", "to_v", "to_out.0"],
+    )
+    pipe.unet.add_adapter(cfg)
+
+
+def _load_unet_lora_peft(pipe, lora_dir: Path, rank: int = 8) -> None:
+    lora_path = Path(lora_dir) / "unet_lora_peft.pt"
+    if not lora_path.exists():
+        raise FileNotFoundError(f"Expected LoRA file not found: {lora_path}")
+
+    state = torch.load(lora_path, map_location="cpu")
+    _inject_unet_lora(pipe, rank=rank)
+    missing, unexpected = pipe.unet.load_state_dict(state, strict=False)
+    if missing:
+        print("[LoRA] missing keys (subset):", [k for k in missing if "lora" in k][:8])
+    if unexpected:
+        print("[LoRA] unexpected keys:", unexpected)
 
 def save_np_mask(mask_t, path):
     m = mask_t.squeeze(0).detach().cpu().numpy()
@@ -88,7 +115,6 @@ def generate_and_mask(
         print("Would save to:", out_path)
         return str(out_path)
 
-    # Set seed for reproducibility
     generator = None
     if seed is not None:
         generator = torch.Generator(device="cuda").manual_seed(int(seed))
@@ -126,7 +152,13 @@ def generate_and_mask(
                 print(f"Failed to set scheduler on ControlNet pipeline: {e}")
 
         if lora_path:
-            pipe.load_lora_weights(lora_path)
+            lora_dir = Path(lora_path)
+            peft_file = lora_dir / "unet_lora_peft.pt"
+            if peft_file.exists():
+                print(f"Loading PEFT LoRA for ControlNet from {peft_file}")
+                _load_unet_lora_peft(pipe, lora_dir, rank=8)
+            else:
+                pipe.load_lora_weights(lora_path)
 
         result = pipe(
             prompt=prompt,
@@ -141,10 +173,39 @@ def generate_and_mask(
         )
         img = result.images[0]
     else:
-        # Base SDXL only
-        pipe = load_sdxl_with_lora(
-            model_id=model_id, lora_path=lora_path, device=dev, dtype=None, cpu_offload=True, scheduler=scheduler,
-        )
+        use_peft_lora = False
+        lora_dir = None
+        if lora_path is not None:
+            lora_dir = Path(lora_path)
+            if (lora_dir / "unet_lora_peft.pt").exists():
+                use_peft_lora = True
+
+        if use_peft_lora and StableDiffusionXLPipeline is not None:
+            dtype = torch.float16 if dev == "cuda" else torch.float32
+            pipe = StableDiffusionXLPipeline.from_pretrained(model_id, torch_dtype=dtype)
+            pipe = pipe.to(dev)
+            pipe.enable_vae_slicing()
+            pipe.enable_vae_tiling()
+            pipe.enable_attention_slicing()
+
+            if scheduler and _sdxl_set_scheduler is not None:
+                try:
+                    _sdxl_set_scheduler(pipe, scheduler)
+                    print(f"Scheduler active (base): {pipe.scheduler.__class__.__name__}")
+                except Exception as e:
+                    print(f"Failed to set scheduler on base pipeline: {e}")
+
+            _load_unet_lora_peft(pipe, lora_dir, rank=8)
+        else:
+            pipe = load_sdxl_with_lora(
+                model_id=model_id,
+                lora_path=lora_path,
+                device=dev,
+                dtype=None,
+                cpu_offload=True,
+                scheduler=scheduler,
+            )
+
         result = pipe(
             prompt=prompt,
             negative_prompt=negative_prompt,
