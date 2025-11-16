@@ -5,6 +5,8 @@ from pathlib import Path
 import random
 from typing import List, Optional
 
+from zmq import device
+
 try:
     import torch
     import torch.nn.functional as F
@@ -246,7 +248,7 @@ def main(argv=None):
     print("Training LoRA with config:", cfg, flush=True)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    dtype = torch.float16 if device == "cuda" else torch.float32
+    dtype = torch.float32
     print(f"Using device={device}, dtype={dtype}", flush=True)
 
     pipe = StableDiffusionXLPipeline.from_pretrained(cfg.model_id, torch_dtype=dtype)
@@ -324,9 +326,11 @@ def main(argv=None):
             if pooled_embeds.shape[-1] != proj_dim_target:
                 pooled_embeds = pooled_embeds[..., :proj_dim_target]
 
-            unet_dtype = next(pipe.unet.parameters()).dtype
+            unet_dtype = torch.float32
             prompt_embeds = prompt_embeds.to(device=device, dtype=unet_dtype)
             pooled_embeds = pooled_embeds.to(device=device, dtype=unet_dtype)
+            noisy_latents = noisy_latents.to(device=device, dtype=unet_dtype)
+            t = timesteps.to(device=device, dtype=torch.float32)
 
             time_ids = _sdxl_time_ids(
                 pipe,
@@ -342,21 +346,12 @@ def main(argv=None):
             assert time_ids.shape[0] == bsz, f"time_ids batch mismatch: {time_ids.shape[0]} vs {bsz}"
 
             try:
-                if device == "cuda":
-                    with torch.autocast(device_type="cuda", dtype=unet_dtype):
-                        model_pred = pipe.unet(
-                            noisy_latents.to(unet_dtype),
-                            t,
-                            prompt_embeds,
-                            added_cond_kwargs={"text_embeds": pooled_embeds, "time_ids": time_ids},
-                        ).sample
-                else:
-                    model_pred = pipe.unet(
-                        noisy_latents.to(unet_dtype),
-                        t,
-                        prompt_embeds,
-                        added_cond_kwargs={"text_embeds": pooled_embeds, "time_ids": time_ids},
-                    ).sample
+                model_pred = pipe.unet(
+                    noisy_latents,
+                    t,
+                    prompt_embeds,
+                    added_cond_kwargs={"text_embeds": pooled_embeds, "time_ids": time_ids},
+                ).sample
             except Exception as e:
                 print("DEBUG: Fail context:")
                 print(f"  latents: {latents.shape} {latents.dtype} on {latents.device}")
@@ -380,8 +375,7 @@ def main(argv=None):
 
             # loss = (weight * (model_pred.float() - target.float())**2).mean()
 
-            weight = torch.ones_like(model_pred, dtype=torch.float32)
-            loss = (weight * (model_pred.float() - target.float())**2).mean()
+            loss = F.mse_loss(model_pred.float(), target.float())
             if not torch.isfinite(loss):
                 print(f"WARNING: non-finite loss detected ({loss.item()}); skipping step.")
                 opt.zero_grad(set_to_none=True)
