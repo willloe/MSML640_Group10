@@ -2,6 +2,7 @@ import argparse
 import json
 from dataclasses import dataclass, asdict
 from pathlib import Path
+import random
 from typing import List, Optional
 
 try:
@@ -104,12 +105,34 @@ def _encode_prompts(pipe: "StableDiffusionXLPipeline", captions: List[str], devi
             do_classifier_free_guidance=False,
         )
 
+    print("DEBUG encode_prompt type:", type(out))
     if isinstance(out, tuple):
-        prompt_embeds = out[0]
-        pooled = out[1] if len(out) >= 2 else None
+        for i, elem in enumerate(out):
+            if isinstance(elem, torch.Tensor):
+                print(f"  elem[{i}] shape={elem.shape}, ndim={elem.ndim}, dtype={elem.dtype}")
+            else:
+                print(f"  elem[{i}] type={type(elem)}")
     else:
-        prompt_embeds, pooled = out, None
+        print("  tensor shape", out.shape, "ndim", out.ndim, "dtype", out.dtype)
 
+    prompt_embeds = None
+    pooled = None
+    if isinstance(out, torch.Tensor):
+        prompt_embeds = out
+
+    elif isinstance(out, tuple):
+        for elem in out:
+            if not isinstance(elem, torch.Tensor):
+                continue
+            if elem.ndim == 3 and prompt_embeds is None:
+                prompt_embeds = elem
+            elif elem.ndim == 2 and pooled is None:
+                pooled = elem
+
+    if prompt_embeds is None:
+        raise RuntimeError("encode_prompt did not return a prompt_embeds tensor")
+
+    if pooled is None:
         with torch.no_grad():
             tok2 = pipe.tokenizer_2(
                 captions,
@@ -119,25 +142,35 @@ def _encode_prompts(pipe: "StableDiffusionXLPipeline", captions: List[str], devi
                 return_tensors="pt",
             )
             tok2 = {k: v.to(device) for k, v in tok2.items()}
-            te2_out = pipe.text_encoder_2(**tok2, output_hidden_states=False, return_dict=True)
 
-            last_hidden = te2_out.last_hidden_state
-            if last_hidden is None:
-                raise RuntimeError("text_encoder_2 returned no last_hidden_state")
+            te2_out = pipe.text_encoder_2(
+                **tok2,
+                output_hidden_states=True,
+                return_dict=True,
+            )
 
-            cls = last_hidden[:, 0, :]
-
-            if hasattr(pipe.text_encoder_2, "text_projection") and pipe.text_encoder_2.text_projection is not None:
-                pooled = pipe.text_encoder_2.text_projection(cls)
+            if hasattr(te2_out, "pooler_output") and te2_out.pooler_output is not None:
+                pooled = te2_out.pooler_output  # [B, D2]
             else:
-                pooled = last_hidden.mean(dim=1)
+                last_hidden = getattr(te2_out, "last_hidden_state", None)
+                if last_hidden is None:
+                    raise RuntimeError(
+                        "text_encoder_2 returned neither pooler_output nor last_hidden_state"
+                    )
+                cls = last_hidden[:, 0, :]
+                proj = getattr(pipe.text_encoder_2, "text_projection", None)
+                if proj is not None:
+                    pooled = proj(cls)
+                else:
+                    pooled = cls
 
     if pooled.ndim == 3 and pooled.shape[1] == 1:
         pooled = pooled.squeeze(1)
-    if pooled.ndim == 3 and pooled.shape[1] > 1:
+    elif pooled.ndim == 3 and pooled.shape[1] > 1:
         pooled = pooled.mean(dim=1)
+
     if pooled.ndim != 2:
-        raise RuntimeError(f"Expected pooled_embeds [B, D]; got {pooled.shape}")
+        raise RuntimeError(f"Expected pooled_embeds [B, D2]; got {pooled.shape}")
 
     return prompt_embeds, pooled
 
@@ -149,11 +182,8 @@ def _sdxl_time_ids(pipe: "StableDiffusionXLPipeline", bsz: int, height: int, wid
         dtype=torch.long,
         text_encoder_projection_dim=int(text_encoder_projection_dim),
     )
-    if not torch.is_tensor(add_time_ids):
-        add_time_ids = torch.tensor(add_time_ids, device=device, dtype=torch.long)
-    else:
-        add_time_ids = add_time_ids.to(device=device, dtype=torch.long)
-    return add_time_ids.repeat(bsz, 1)
+    time_ids = torch.as_tensor(add_time_ids, device=device, dtype=torch.long)
+    return time_ids.repeat(bsz, 1)
 
 def _vae_encode(pipe: "StableDiffusionXLPipeline", imgs: torch.Tensor) -> torch.Tensor:
     with torch.no_grad():
@@ -182,6 +212,8 @@ def main(argv=None):
     _assert_reqs()
     if dlogging:
         dlogging.set_verbosity_error()
+    random.seed(int(args.seed))
+    np.random.seed(int(args.seed))
     torch.manual_seed(int(args.seed))
 
     output_dir = Path(args.output_dir).resolve()
@@ -237,11 +269,11 @@ def main(argv=None):
         lora_params,
         lr=cfg.lr,
         betas=(0.9, 0.999),
-        eps=1e-8,
+        eps=1e-6,
         weight_decay=0.0,
     )
     ds = JsonlImageDataset(Path(cfg.train_jsonl), resolution=cfg.resolution)
-    dl = DataLoader(ds, batch_size=cfg.batch_size, shuffle=True, num_workers=0, drop_last=True)
+    dl = DataLoader(ds, batch_size=cfg.batch_size, shuffle=True, num_workers=0, drop_last=True, pin_memory=(device == "cuda"))
 
     scheduler = pipe.scheduler
     global_step = 0
@@ -254,16 +286,25 @@ def main(argv=None):
             captions = batch["caption"]
 
             latents = _vae_encode(pipe, pixels)
+            noise_offset = 0.1
             noise = torch.randn_like(latents)
+            if noise_offset > 0:
+                noise = noise + noise_offset * torch.randn_like(noise)
             bsz = latents.shape[0]
             timesteps = torch.randint(0, scheduler.config.num_train_timesteps, (bsz,), device=device).long()
+            timestep_dtype = next(pipe.unet.parameters()).dtype
+            t = timesteps.to(device=device, dtype=timestep_dtype)
 
             noisy_latents = scheduler.add_noise(latents, noise, timesteps)
             prompt_embeds, pooled_embeds = _encode_prompts(pipe, captions, device=device)
 
             proj_dim_target = getattr(pipe.text_encoder_2.config, "projection_dim", None)
             if proj_dim_target is None:
-                proj_dim_target = 1280
+                proj = getattr(pipe.text_encoder_2, "text_projection", None)
+                if proj is not None and hasattr(proj, "weight"):
+                    proj_dim_target = proj.weight.shape[1]
+                else:
+                    proj_dim_target = 1280
             pipe.text_encoder_2.config.projection_dim = int(proj_dim_target)
 
             if pooled_embeds.ndim == 3 and pooled_embeds.shape[1] == 1:
@@ -293,14 +334,14 @@ def main(argv=None):
                     with torch.autocast(device_type="cuda", dtype=unet_dtype):
                         model_pred = pipe.unet(
                             noisy_latents.to(unet_dtype),
-                            timesteps,
+                            t,
                             prompt_embeds,
                             added_cond_kwargs={"text_embeds": pooled_embeds, "time_ids": time_ids},
                         ).sample
                 else:
                     model_pred = pipe.unet(
                         noisy_latents.to(unet_dtype),
-                        timesteps,
+                        t,
                         prompt_embeds,
                         added_cond_kwargs={"text_embeds": pooled_embeds, "time_ids": time_ids},
                     ).sample
@@ -317,12 +358,15 @@ def main(argv=None):
                 raise
 
             pred_type = getattr(scheduler.config, "prediction_type", "epsilon")
-            if pred_type == "v_prediction" and hasattr(scheduler, "get_velocity"):
-                target = scheduler.get_velocity(latents, noise, timesteps)
-            else:
-                target = noise
+            target = scheduler.get_velocity(latents, noise, timesteps) if (pred_type == "v_prediction" and hasattr(scheduler, "get_velocity")) else noise
 
-            loss = F.mse_loss(model_pred.float(), target.float(), reduction="mean")
+            snr_gamma = 5.0
+            with torch.no_grad():
+                alphas_cumprod = scheduler.alphas_cumprod.to(device)[timesteps.long().cpu()].to(device)
+            snr = alphas_cumprod / (1 - alphas_cumprod)
+            weight = (snr_gamma / (snr + 1)).view(-1, *([1] * (model_pred.ndim - 1))).to(model_pred.dtype)
+
+            loss = (weight * (model_pred.float() - target.float())**2).mean()
             if not torch.isfinite(loss):
                 print(f"WARNING: non-finite loss detected ({loss.item()}); skipping step.")
                 opt.zero_grad(set_to_none=True)
