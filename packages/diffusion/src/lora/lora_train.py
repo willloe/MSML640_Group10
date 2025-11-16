@@ -389,26 +389,39 @@ def main(argv=None):
                 opt.zero_grad(set_to_none=True)
                 global_step += 1
 
-                if global_step % 10 == 0:
+                if global_step % 10 == 0 or global_step == cfg.max_train_steps:
                     print(f"step {global_step}/{cfg.max_train_steps} loss {loss.item():.4f}")
 
                 if global_step % 20 == 0:
                     torch.cuda.empty_cache()
 
-                if global_step % max(1, cfg.checkpoint_steps) == 0:
+                if cfg.checkpoint_steps > 0 and global_step % cfg.checkpoint_steps == 0 and global_step < cfg.max_train_steps:
                     ckpt_dir = output_dir / f"ckpt_step_{global_step}"
                     ckpt_dir.mkdir(parents=True, exist_ok=True)
-                    pipe.save_lora_weights(ckpt_dir, unet_lora_layers=pipe.unet, weight_name="pytorch_lora_weights.safetensors")
+                    pipe.save_lora_weights(
+                        ckpt_dir,
+                        unet_lora_layers=pipe.unet,
+                        weight_name="pytorch_lora_weights.safetensors",
+                    )
                     print(f"Saved LoRA checkpoint to {ckpt_dir}")
 
                 if global_step >= cfg.max_train_steps:
-                    break
+                    if device == "cuda":
+                        opt.zero_grad(set_to_none=True)
+                        torch.cuda.empty_cache()
 
-    final_dir = output_dir / "final_lora"
-    final_dir.mkdir(parents=True, exist_ok=True)
-    pipe.save_lora_weights(final_dir, unet_lora_layers=pipe.unet, weight_name="pytorch_lora_weights.safetensors")
-    print(f"Saved final LoRA weights to {final_dir}")
-    print("Training complete.")
+                    final_dir = output_dir / "final_lora"
+                    final_dir.mkdir(parents=True, exist_ok=True)
+                    pipe.save_lora_weights(
+                        final_dir,
+                        unet_lora_layers=pipe.unet,
+                        weight_name="pytorch_lora_weights.safetensors",
+                    )
+                    print(f"Saved final LoRA weights to {final_dir}")
+                    print("Training complete.")
+                    return 0
+
+    print("Reached end of training loop without hitting max_train_steps; skipping final save.")
     return 0
 
 if __name__ == "__main__":
