@@ -2,6 +2,8 @@ from pathlib import Path
 from typing import Dict, Optional
 import torch
 
+from peft import LoraConfig as PeftLoraConfig
+from peft.tuners.lora import LoraLayer
 try:
     from sdxl import load_sdxl_with_lora, prompt_from_palette
 except Exception:
@@ -20,6 +22,50 @@ except Exception:
         sys.path.append(str(ROOT))
     from generate import apply_safe_zone_mask
 
+try:
+    from diffusers import ControlNetModel, StableDiffusionXLControlNetPipeline, StableDiffusionXLPipeline
+except Exception:
+    ControlNetModel = None
+    StableDiffusionXLControlNetPipeline = None
+    StableDiffusionXLPipeline = None
+
+def _inject_unet_lora(pipe, rank: int = 8) -> None:
+    pipe.unet.requires_grad_(False)
+    cfg = PeftLoraConfig(
+        r=rank,
+        lora_alpha=rank * 2,
+        lora_dropout=0.0,
+        bias="none",
+        target_modules=["to_q", "to_k", "to_v", "to_out.0"],
+    )
+    pipe.unet.add_adapter(cfg)
+
+
+def _load_unet_lora_peft(pipe, lora_dir: Path, rank: int = 8) -> None:
+    lora_path = Path(lora_dir) / "unet_lora_peft.pt"
+    if not lora_path.exists():
+        raise FileNotFoundError(f"Expected LoRA file not found: {lora_path}")
+
+    state = torch.load(lora_path, map_location="cpu")
+    _inject_unet_lora(pipe, rank=rank)
+    missing, unexpected = pipe.unet.load_state_dict(state, strict=False)
+    if missing:
+        print("[LoRA] missing keys (subset):", [k for k in missing if "lora" in k][:8])
+    if unexpected:
+        print("[LoRA] unexpected keys:", unexpected)
+
+def save_np_mask(mask_t, path):
+    m = mask_t.squeeze(0).detach().cpu().numpy()
+    m8 = (np.clip(m, 0, 1) * 255).astype(np.uint8)
+    Image.fromarray(m8, mode="L").save(str(path))
+
+def draw_layout_boxes(base_img: Image.Image, layout: Dict, color=(255, 0, 0), width=3):
+    img = base_img.copy()
+    d = ImageDraw.Draw(img)
+    for el in layout.get("elements", []):
+        x, y, w, h = el["bbox_xywh"]
+        d.rectangle([x, y, x + w, y + h], outline=color, width=width)
+    return img
 
 def generate_and_mask(
     palette: Dict,
@@ -52,31 +98,107 @@ def generate_and_mask(
         print("Would save to:", out_path)
         return str(out_path)
 
-    # Set seed for reproducibility
     generator = None
     if seed is not None:
         generator = torch.Generator(device="cuda").manual_seed(int(seed))
 
-    # Load SDXL (with optional LoRA)
-    pipe = load_sdxl_with_lora(
-        model_id=model_id,
-        lora_path=lora_path,
-        device=dev,
-        dtype=None,        # default: fp16 on CUDA, fp32 on CPU
-        cpu_offload=True,
-    )
+    stem = Path(out_name).stem
+    img: Image.Image
+    if use_controlnet:
+        if StableDiffusionXLControlNetPipeline is None or ControlNetModel is None:
+            raise ImportError("diffusers ControlNet classes not available.")
+        if control_image_from_map is None:
+            raise RuntimeError("control.control_image_from_map not importable.")
+        if control_map is None:
+            raise ValueError("use_controlnet=True requires a control_map tensor [4,H,W].")
+        if controlnet_model_id is None:
+            controlnet_model_id = "diffusers/controlnet-canny-sdxl-1.0"
 
-    # Minimal generate call
-    result = pipe(
-        prompt=prompt,
-        negative_prompt=negative_prompt,
-        guidance_scale=float(guidance),
-        num_inference_steps=int(steps),
-        width=int(width),
-        height=int(height),
-        generator=generator,
-    )
-    img = result.images[0]
+        print(f"Using ControlNet: True ({controlnet_model_id}), strength={control_strength}")
+
+        control_image = control_image_from_map(control_map=control_map, safe_zone=safe_zone, size=(int(width), int(height)), mode=str(control_from))
+        controlnet = ControlNetModel.from_pretrained(controlnet_model_id, torch_dtype=torch.float16)
+        pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
+            model_id, controlnet=controlnet, torch_dtype=torch.float16
+        )
+        try:
+            pipe.enable_xformers_memory_efficient_attention()
+        except Exception:
+            pass
+        pipe = pipe.to("cuda")
+
+        if scheduler and _sdxl_set_scheduler is not None:
+            try:
+                _sdxl_set_scheduler(pipe, scheduler)
+                print(f"Scheduler active (ControlNet): {pipe.scheduler.__class__.__name__}")
+            except Exception as e:
+                print(f"Failed to set scheduler on ControlNet pipeline: {e}")
+
+        if lora_path:
+            lora_dir = Path(lora_path)
+            peft_file = lora_dir / "unet_lora_peft.pt"
+            if peft_file.exists():
+                print(f"Loading PEFT LoRA for ControlNet from {peft_file}")
+                _load_unet_lora_peft(pipe, lora_dir, rank=8)
+            else:
+                pipe.load_lora_weights(lora_path)
+
+        result = pipe(
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            num_inference_steps=int(steps),
+            guidance_scale=float(guidance),
+            controlnet_conditioning_scale=float(control_strength),
+            image=control_image,
+            generator=generator,
+            width=int(width),
+            height=int(height),
+        )
+        img = result.images[0]
+    else:
+        use_peft_lora = False
+        lora_dir = None
+        if lora_path is not None:
+            lora_dir = Path(lora_path)
+            if (lora_dir / "unet_lora_peft.pt").exists():
+                use_peft_lora = True
+
+        if use_peft_lora and StableDiffusionXLPipeline is not None:
+            dtype = torch.float16 if dev == "cuda" else torch.float32
+            pipe = StableDiffusionXLPipeline.from_pretrained(model_id, torch_dtype=dtype)
+            pipe = pipe.to(dev)
+            pipe.enable_vae_slicing()
+            pipe.enable_vae_tiling()
+            pipe.enable_attention_slicing()
+
+            if scheduler and _sdxl_set_scheduler is not None:
+                try:
+                    _sdxl_set_scheduler(pipe, scheduler)
+                    print(f"Scheduler active (base): {pipe.scheduler.__class__.__name__}")
+                except Exception as e:
+                    print(f"Failed to set scheduler on base pipeline: {e}")
+
+            _load_unet_lora_peft(pipe, lora_dir, rank=8)
+        else:
+            pipe = load_sdxl_with_lora(
+                model_id=model_id,
+                lora_path=lora_path,
+                device=dev,
+                dtype=None,
+                cpu_offload=True,
+                scheduler=scheduler,
+            )
+
+        result = pipe(
+            prompt=prompt,
+            negative_prompt=negative_prompt,
+            guidance_scale=float(guidance),
+            num_inference_steps=int(steps),
+            width=int(width),
+            height=int(height),
+            generator=generator,
+        )
+        img = result.images[0]
 
     # Apply safe-zone masking to enforce neutral element regions
     masked = apply_safe_zone_mask(img, safe_zone, neutral_color=tuple(int(x) for x in neutral_rgb))
