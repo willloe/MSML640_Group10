@@ -101,7 +101,20 @@ def generate_and_mask(
     control_from: str = "element",  # "element" | "safe" | "edge"
     scheduler: Optional[str] = None,
     debug: bool = True,
+    **kwargs,
 ) -> str:
+    if "num_inference_steps" in kwargs and kwargs["num_inference_steps"] is not None:
+        steps = int(kwargs.pop("num_inference_steps"))
+
+    if "guidance_scale" in kwargs and kwargs["guidance_scale"] is not None:
+        guidance = float(kwargs.pop("guidance_scale"))
+
+    if "save_dir" in kwargs and kwargs["save_dir"] is not None:
+        out_dir = kwargs.pop("save_dir")
+
+    if kwargs:
+        print(f"generate_and_mask: Ignoring unexpected kwargs: {list(kwargs.keys())}")
+
     dev = device or ("cuda" if torch.cuda.is_available() else "cpu")
     prompt = prompt_from_palette(palette)
 
