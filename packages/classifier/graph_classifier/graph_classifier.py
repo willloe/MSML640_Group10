@@ -100,7 +100,7 @@ if __name__ == "__main__":
     os.makedirs(save_path, exist_ok=True)
 
     # hyperparameters for tuning
-    dataset_path       = Path("by_class")
+    dataset_path       = Path("by_class") # cannot change because of filename size limit
     batch_size         = 32
     image_size         = 384
     num_of_epochs      = 1          # DEBUG: set to larger number for better results
