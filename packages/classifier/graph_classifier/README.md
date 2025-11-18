@@ -1,6 +1,16 @@
 # Custom YOLO Classifier for Charts, Tables, Graphs, and Shapes
 
-## A. Run Inference Using Pre-trained Custom Model
+## A. Direct Usage of the Custom Model for this Project
+
+#### The `trained_model.pt` model can be directly used to make inference of an image for this project:
+```
+model   = YOLO("trained_model.pt")
+results = model.predict("image.png")
+```
+
+#### The `results.json` provides structural information about the positions and bounding boxes of an object.
+
+## B. Run Inference Using Pre-trained Custom Model
 
 #### This is the least time-consuming option.
 
@@ -20,7 +30,7 @@ python inference_pipeline.py
 - Modify `image_path` variable to test different images
 - Ensure `trained_model.pt` exists in the folder
 
-## B. Train your own custom YOLO model
+## C. Train your own custom YOLO model
 
 #### This option can be time-consuming depending on hardware.
 
@@ -60,7 +70,7 @@ python inference_pipeline.py
 - Structured detections are saved to: `results.json`
 - Modify `image_path` variable to test different images
 
-## C. Generate a Synthetic Dataset + Train Model
+## D. Generate a Synthetic Dataset + Train Model
 
 #### This is the most time-consuming option.
 
