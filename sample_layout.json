@@ -1,0 +1,29 @@
+{
+  "canvas_size": [768, 1024],
+  "elements": [
+    {
+      "class": "title",
+      "bbox_xywh": [100, 50, 600, 80],
+      "z_order": 2,
+      "reading_order": 1
+    },
+    {
+      "class": "body",
+      "bbox_xywh": [100, 160, 650, 350],
+      "z_order": 1,
+      "reading_order": 2
+    },
+    {
+      "class": "image",
+      "bbox_xywh": [700, 450, 250, 200],
+      "z_order": 0,
+      "reading_order": 3
+    },
+    {
+      "class": "logo",
+      "bbox_xywh": [850, 650, 100, 60],
+      "z_order": 3,
+      "reading_order": 4
+    }
+  ]
+}

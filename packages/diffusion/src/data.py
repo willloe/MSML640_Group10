@@ -1,6 +1,52 @@
 import torch
-from torch.utils.data import DataLoader, random_split
+import json
+from pathlib import Path
+from PIL import Image
+from torch.utils.data import Dataset, DataLoader, random_split
 from torchvision import datasets, transforms
+
+class BackgroundsFolderDataset(Dataset):
+
+    def __init__(self, folder_path, manifest_path=None, transform=None):
+
+        self.folder_path = Path(folder_path)
+        self.transform = transform
+        self.images = []
+        self.tags_map = {}
+
+        if manifest_path is not None:
+            manifest_path = Path(manifest_path)
+            if manifest_path.exists():
+                with open(manifest_path, 'r') as f:
+                    manifest = json.load(f)
+                    for entry in manifest.get('images', []):
+                        self.tags_map[entry['path']] = entry.get('tags', [])
+
+        image_extensions = {'.png', '.jpg', '.jpeg', '.bmp', '.gif', '.tiff'}
+        for ext in image_extensions:
+            self.images.extend(self.folder_path.glob(f'*{ext}'))
+            self.images.extend(self.folder_path.glob(f'*{ext.upper()}'))
+
+        self.images = sorted(self.images)
+
+        if len(self.images) == 0:
+            raise ValueError(f"No images found in {folder_path}")
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, idx):
+
+        img_path = self.images[idx]
+        image = Image.open(img_path).convert('RGB')
+
+        if self.transform:
+            image = self.transform(image)
+
+        tags = self.tags_map.get(img_path.name, [])
+
+        return image, tags
+
 
 def _build_transforms(image_size):
     return transforms.Compose([
@@ -28,6 +74,14 @@ def _make_dtd_dataset(data_root, image_size, download):
         transform=tr,
     )
 
+def _make_backgrounds_dataset(folder_path, manifest_path, image_size):
+    tr = _build_transforms(image_size)
+    return BackgroundsFolderDataset(
+        folder_path=folder_path,
+        manifest_path=manifest_path,
+        transform=tr,
+    )
+
 def _split_dataset(ds, val_ratio, seed=42):
     n = len(ds)
     v = max(1, int(float(val_ratio) * n))
@@ -49,6 +103,14 @@ def get_dataloaders(config):
         base = _make_fake_dataset(image_size, subset)
     elif source == "dtd":
         base = _make_dtd_dataset(data_root, image_size, download)
+        if subset is not None:
+            k = min(int(subset), len(base))
+            indices = list(range(k))
+            base = torch.utils.data.Subset(base, indices)
+    elif source == "backgrounds":
+        folder_path = config.get("folder_path", "./data/backgrounds")
+        manifest_path = config.get("manifest_path", None)
+        base = _make_backgrounds_dataset(folder_path, manifest_path, image_size)
         if subset is not None:
             k = min(int(subset), len(base))
             indices = list(range(k))

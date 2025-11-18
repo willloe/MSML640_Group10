@@ -1,7 +1,6 @@
 import os
 import torch
 
-# Delay heavy imports to keep import cost low in other modules.
 try:
     from diffusers import DiffusionPipeline
 except Exception as e:
@@ -93,13 +92,19 @@ def prepare_prompt(prompt, palette=None):
     parts = [prompt]
     primary = str(palette.get("primary", "")).strip()
     secondary = str(palette.get("secondary", "")).strip()
+    accent = str(palette.get("accent", "")).strip()      # include accent
     style = str(palette.get("bg_style", "")).strip()
 
     if primary:
         parts.append(f"primary color {primary}")
     if secondary:
-        parts.append(f"secondary accent {secondary}")
+        parts.append(f"secondary color {secondary}")
+    if accent:
+        parts.append(f"accent color {accent}")
     if style:
         parts.append(style)
 
     return ", ".join([p for p in parts if p])
+
+def prompt_from_palette(palette):
+    return prepare_prompt("professional slide background", palette)

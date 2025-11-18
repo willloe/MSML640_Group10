@@ -25,4 +25,3 @@ python organize_full_dataset.py
 #### Resources:
 - https://github.com/nttmdlab-nlp/SlideVQA/tree/main/annotations/bbox
 - https://huggingface.co/datasets/NTT-hil-insight/SlideVQA
-
