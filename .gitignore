@@ -11,6 +11,8 @@ artifacts/
 packages/classifier/images/SlideVQA/full_dataset/annotated/
 packages/classifier/images/SlideVQA/full_dataset/original/
 packages/classifier/images/SlideVQA/by_class
+packages/diffusion/dataset/synthetic_dataset/
+packages/diffusion/dataset/images_flattened.zip
 
 # Misc
 .DS_Store

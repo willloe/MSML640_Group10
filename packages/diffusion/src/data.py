@@ -1,3 +1,4 @@
+import os
 import torch
 import json
 from pathlib import Path
@@ -47,6 +48,56 @@ class BackgroundsFolderDataset(Dataset):
 
         return image, tags
 
+class SyntheticControlNetDataset(Dataset):
+    def __init__(self, root_dir, image_size=256, control_suffix=".control.png", safe_suffix=".safe.png"):
+        self.root_dir = Path(root_dir)
+        self.control_suffix = control_suffix
+        self.safe_suffix = safe_suffix
+
+        if not self.root_dir.exists():
+            raise ValueError(f"SyntheticControlNetDataset root does not exist: {self.root_dir}")
+
+        self.control_transform = _build_transforms(image_size)
+        self.safe_transform = _build_transforms(image_size)
+
+        self.pairs = []
+        control_files = sorted(self.root_dir.glob(f"*{self.control_suffix}"))
+        if not control_files:
+            raise ValueError(f"No control images found in {self.root_dir} with suffix {self.control_suffix}")
+
+        for c_path in control_files:
+            name = c_path.name
+            stem = name[:-len(self.control_suffix)]
+            safe_name = stem + self.safe_suffix
+            s_path = self.root_dir / safe_name
+            if s_path.exists():
+                self.pairs.append((c_path, s_path, stem))
+            else:
+                continue
+
+        if not self.pairs:
+            raise ValueError(
+                f"No valid control/safe pairs found in {self.root_dir} "
+                f"(control suffix={self.control_suffix}, safe suffix={self.safe_suffix})"
+            )
+
+    def __len__(self):
+        return len(self.pairs)
+
+    def __getitem__(self, idx):
+        control_path, safe_path, stem = self.pairs[idx]
+        control_img = Image.open(control_path).convert("RGB")
+        control_tensor = self.control_transform(control_img)
+
+        safe_img = Image.open(safe_path).convert("L")
+        safe_tensor = self.safe_transform(safe_img)
+
+        sample = {
+            "control": control_tensor,
+            "safe": safe_tensor,
+            "name": stem,
+        }
+        return sample
 
 def _build_transforms(image_size):
     return transforms.Compose([
@@ -111,6 +162,13 @@ def get_dataloaders(config):
         folder_path = config.get("folder_path", "./data/backgrounds")
         manifest_path = config.get("manifest_path", None)
         base = _make_backgrounds_dataset(folder_path, manifest_path, image_size)
+        if subset is not None:
+            k = min(int(subset), len(base))
+            indices = list(range(k))
+            base = torch.utils.data.Subset(base, indices)
+    elif source == "synthetic_control":
+        folder_path = config.get("folder_path", "./data/synthetic_dataset/train")
+        base = SyntheticControlNetDataset(folder_path, image_size=image_size)
         if subset is not None:
             k = min(int(subset), len(base))
             indices = list(range(k))
