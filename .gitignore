@@ -20,6 +20,9 @@ packages/classifier/text/sample_data
 packages/classifier/text/temp_slidevqa
 packages/classifier/text/trained_models/*.pkl
 packages/classifier/text/training_data/
+packages/diffusion/dataset/synthetic_dataset/
+packages/diffusion/dataset/images_flattened/
+packages/diffusion/dataset/images_flattened.zip
 
 # Misc
 .DS_Store
