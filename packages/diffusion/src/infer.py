@@ -1,25 +1,23 @@
 from pathlib import Path
 from typing import Dict, Optional
 import torch
+from PIL import Image, ImageDraw, ImageFilter, ImageChops
 import numpy as np
-from PIL import Image, ImageDraw
 
 from peft import LoraConfig as PeftLoraConfig
 from peft.tuners.lora import LoraLayer
-
 try:
-    from sdxl import load_sdxl_with_lora, prompt_from_palette
+    from sdxl import load_sdxl_with_lora, prompt_from_palette, _set_scheduler as _sdxl_set_scheduler
 except Exception:
     import sys
     ROOT = Path(__file__).resolve().parents[2]
     if str(ROOT) not in sys.path:
         sys.path.append(str(ROOT))
     from sdxl import load_sdxl_with_lora, prompt_from_palette
-
-try:
-    from sdxl import _set_scheduler as _sdxl_set_scheduler
-except Exception:
-    _sdxl_set_scheduler = None
+    try:
+        from sdxl import _set_scheduler as _sdxl_set_scheduler
+    except Exception:
+        _sdxl_set_scheduler = None
 
 try:
     from control import control_image_from_map
