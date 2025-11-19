@@ -5,7 +5,7 @@
 #### The `trained_model.pt` model can be directly used to make inference of an image for this project:
 ```
 model   = YOLO("trained_model.pt")
-results = model.predict("image.png")
+results = model.predict("image.png") # see inference_pipeline.py for more details
 ```
 
 #### The `results.json` provides structural information about the positions and bounding boxes of an object.
