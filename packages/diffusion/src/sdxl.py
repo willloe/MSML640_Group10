@@ -9,6 +9,11 @@ except Exception as e:
 else:
     _DIFFUSERS_IMPORT_ERR = None
 
+try:
+    from diffusers import DDIMScheduler, DPMSolverMultistepScheduler
+except Exception:
+    DDIMScheduler = None
+    DPMSolverMultistepScheduler = None
 
 def _pick_device(device):
     if device is not None:
@@ -21,6 +26,26 @@ def _pick_dtype(dtype, device):
         return dtype
     return torch.float16 if device == "cuda" else torch.float32
 
+def _set_scheduler(pipe, name: str):
+    if not name or not hasattr(pipe, "scheduler"):
+        return
+
+    cfg = getattr(pipe.scheduler, "config", None)
+    if cfg is None:
+        print("set_scheduler: no scheduler config found on pipeline; skipping")
+        return
+
+    key = str(name).strip().lower()
+    try:
+        if key in ("ddim", "ddimscheduler") and DDIMScheduler is not None:
+            pipe.scheduler = DDIMScheduler.from_config(cfg)
+            return
+        if key in ("dpmpp", "dpm++", "dpmsolver", "dpmsolvermultistep") and DPMSolverMultistepScheduler is not None:
+            pipe.scheduler = DPMSolverMultistepScheduler.from_config(cfg)
+            return
+        print(f"set_scheduler: unknown or unavailable scheduler '{name}', keeping default")
+    except Exception as e:
+        print(f"set_scheduler: failed to set '{name}': {e}")
 
 def load_sdxl_with_lora(
     model_id="stabilityai/stable-diffusion-xl-base-1.0",
@@ -28,6 +53,7 @@ def load_sdxl_with_lora(
     device=None,
     dtype=None,
     cpu_offload=True,
+    scheduler: str | None = None,
 ):
     if DiffusionPipeline is None:
         raise ImportError(
@@ -37,7 +63,6 @@ def load_sdxl_with_lora(
     dev = _pick_device(device)
     dt = _pick_dtype(dtype, dev)
 
-    # If running on CUDA with fp16, request fp16 weights variant.
     variant = "fp16" if (dev == "cuda" and dt == torch.float16) else None
 
     try:
@@ -49,31 +74,31 @@ def load_sdxl_with_lora(
     except Exception as e:
         raise RuntimeError(f"Failed to load SDXL base model '{model_id}': {e}")
 
-    try:
-        pipe.enable_attention_slicing()
-    except Exception:
-        pass
-    try:
-        pipe.enable_xformers_memory_efficient_attention()
-    except Exception:
-        pass
+    if dev == "cuda":
+        try:
+            pipe.enable_xformers_memory_efficient_attention()
+        except Exception:
+            pass
 
-    # Move to device
     try:
         pipe.to(dev)
     except Exception:
-        # Fallback to CPU if GPU move fails
         dev = "cpu"
         pipe.to("cpu")
 
-    # Optional offload when using CUDA
+    if scheduler:
+        _set_scheduler(pipe, scheduler)
+        try:
+            print(f"Scheduler active: {pipe.scheduler.__class__.__name__}")
+        except Exception:
+            pass
+
     if cpu_offload and dev == "cuda":
         try:
             pipe.enable_model_cpu_offload()
         except Exception:
             pass
 
-    # Optional LoRA
     if lora_path:
         if not os.path.exists(lora_path):
             raise RuntimeError(f"LoRA path does not exist: {lora_path}")
@@ -92,7 +117,7 @@ def prepare_prompt(prompt, palette=None):
     parts = [prompt]
     primary = str(palette.get("primary", "")).strip()
     secondary = str(palette.get("secondary", "")).strip()
-    accent = str(palette.get("accent", "")).strip()      # include accent
+    accent = str(palette.get("accent", "")).strip()
     style = str(palette.get("bg_style", "")).strip()
 
     if primary:
