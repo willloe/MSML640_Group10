@@ -1,9 +1,12 @@
 from pathlib import Path
 from typing import Dict, Optional
 import torch
+import numpy as np
+from PIL import Image, ImageDraw
 
 from peft import LoraConfig as PeftLoraConfig
 from peft.tuners.lora import LoraLayer
+
 try:
     from sdxl import load_sdxl_with_lora, prompt_from_palette
 except Exception:
@@ -12,6 +15,16 @@ except Exception:
     if str(ROOT) not in sys.path:
         sys.path.append(str(ROOT))
     from sdxl import load_sdxl_with_lora, prompt_from_palette
+
+try:
+    from sdxl import _set_scheduler as _sdxl_set_scheduler
+except Exception:
+    _sdxl_set_scheduler = None
+
+try:
+    from control import control_image_from_map
+except Exception:
+    control_image_from_map = None
 
 try:
     from generate import apply_safe_zone_mask
