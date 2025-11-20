@@ -133,9 +133,10 @@ def prepare_prompt(prompt, palette=None):
 
 def prompt_from_palette(palette):
     base = (
-        "minimalist professional slide background, "
-        "soft gradients, smooth abstract shapes, "
-        "clean 16:9 presentation layout, "
-        "subtle depth, low noise"
+        "minimal professional presentation slide background, "
+        "single slide, no collage, no grid, no multiple panels, "
+        "soft gradients and large smooth color blocks, "
+        "low texture, low detail, clean edges, "
+        "high negative space, 16:9 aspect ratio"
     )
     return prepare_prompt(base, palette)
