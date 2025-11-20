@@ -101,6 +101,7 @@ def generate_and_mask(
     control_from: str = "element",  # "element" | "safe" | "edge"
     scheduler: Optional[str] = None,
     debug: bool = True,
+    apply_safe_mask: bool = False,
     **kwargs,
 ) -> str:
     if "num_inference_steps" in kwargs and kwargs["num_inference_steps"] is not None:
@@ -114,6 +115,12 @@ def generate_and_mask(
 
     if kwargs:
         print(f"generate_and_mask: Ignoring unexpected kwargs: {list(kwargs.keys())}")
+
+    if negative_prompt is None:
+        negative_prompt = (
+            "busy, noisy, cluttered, grid pattern, checkerboard, tiles, "
+            "hyper-detailed, text, logo, watermark, 3d render, photo"
+        )
 
     dev = device or ("cuda" if torch.cuda.is_available() else "cpu")
     prompt = prompt_from_palette(palette)
@@ -230,8 +237,13 @@ def generate_and_mask(
         )
         img = result.images[0]
 
-    # Apply safe-zone masking to enforce neutral element regions
-    masked = apply_safe_zone_mask(img, safe_zone, neutral_color=tuple(int(x) for x in neutral_rgb))
-
-    masked.save(str(out_path))
+    if apply_safe_mask and safe_zone is not None:
+        masked = apply_safe_zone_mask(
+            img,
+            safe_zone,
+            neutral_color=tuple(int(x) for x in neutral_rgb),
+        )
+        masked.save(str(out_path))
+    else:
+        img.save(str(out_path))
     return str(out_path)
