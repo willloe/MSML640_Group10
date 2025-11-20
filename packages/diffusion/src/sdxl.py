@@ -132,4 +132,8 @@ def prepare_prompt(prompt, palette=None):
     return ", ".join([p for p in parts if p])
 
 def prompt_from_palette(palette):
-    return prepare_prompt("professional slide background", palette)
+    base = (
+        "minimal professional presentation slide background, clean layout, "
+        "smooth gradient, flat design, soft lighting, no photos"
+    )
+    return prepare_prompt(base, palette)
