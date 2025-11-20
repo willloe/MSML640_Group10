@@ -124,6 +124,7 @@ def generate_and_mask(
 
     dev = device or ("cuda" if torch.cuda.is_available() else "cpu")
     prompt = prompt_from_palette(palette)
+    print("Prompt:", prompt)
 
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -139,7 +140,6 @@ def generate_and_mask(
     if seed is not None:
         generator = torch.Generator(device="cuda").manual_seed(int(seed))
 
-    stem = Path(out_name).stem
     img: Image.Image
     if use_controlnet:
         if StableDiffusionXLControlNetPipeline is None or ControlNetModel is None:
@@ -154,9 +154,9 @@ def generate_and_mask(
         print(f"Using ControlNet: True ({controlnet_model_id}), strength={control_strength}")
 
         control_image = control_image_from_map(control_map=control_map, safe_zone=safe_zone, size=(int(width), int(height)), mode=str(control_from))
-        controlnet = ControlNetModel.from_pretrained(controlnet_model_id, torch_dtype=torch.float16)
+        controlnet = ControlNetModel.from_pretrained(controlnet_model_id, dtype=torch.float16)
         pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
-            model_id, controlnet=controlnet, torch_dtype=torch.float16
+            model_id, controlnet=controlnet, dtype=torch.float16
         )
         try:
             pipe.enable_xformers_memory_efficient_attention()
