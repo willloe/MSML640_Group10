@@ -18,14 +18,14 @@ from tqdm import tqdm
 RANDOM_SEED = 42
 
 # image size (width, height)
-IMAGE_WIDTH  = 1024
-IMAGE_HEIGHT = 1024
+IMAGE_WIDTH  = 768
+IMAGE_HEIGHT = 768
 
-# number of single object images per class (default: 400)
-NUM_IMAGES_PER_CLASS = 10
+# number of single object images per class (default: 400 for local GPU, 500 for HPC)
+NUM_IMAGES_PER_CLASS = 500
 
-# number of multi-objects images in total (default: 1000)
-NUM_MULTI_IMAGES = 20
+# number of multi-objects images in total (default: 1000 for local GPU, 2000 for HPC)
+NUM_MULTI_IMAGES = 2000
 
 # train/validation split
 TRAIN_RATIO = 0.8
@@ -43,12 +43,12 @@ OBJ_MAX_SCALE_MULTI = 0.4
 
 # output directory, also create YOLO structure:
 # dataset/
-# |-images/
-# |---train/
-# |---val/
-# |-labels/
-# |---train/
-# |---val/
+#   ├── images/
+#   │     ├── train/
+#   │     └── val/
+#   └── labels/
+#         ├── train/
+#         └── val/
 OUTPUT_DIR = "dataset"
 
 # =====================
@@ -57,31 +57,29 @@ OUTPUT_DIR = "dataset"
 
 CLASSES = \
 [
-    "column_chart",        # 0
-    "line_chart",          # 1
-    "pie_chart",           # 2
-    "bar_chart",           # 3
-    "area_chart",          # 4
-    "scatter_chart",       # 5
-    "treemap_chart",       # 6
-    "histogram_chart",     # 7
-    "waterfall_chart",     # 8
-    "flowchart",           # 9
-    "hierarchy_diagram",   # 10
-    "cycle_diagram",       # 11
-    "table",               # 12
-    "list_diagram",        # 13
-    "circle",              # 14
-    "oval",                # 15
-    "triangle_right",      # 16
-    "triangle_isosceles",  # 17
-    "diamond",             # 18
-    "parallelogram",       # 19
-    "trapezoid",           # 20
-    "pentagon",            # 21
-    "hexagon",             # 22
-    "octagon",             # 23
-    "rectangle"            # 24
+    "column_chart",                 # 0
+    "line_chart",                   # 1
+    "pie_chart",                    # 2
+    "bar_chart",                    # 3
+    "area_chart",                   # 4
+    "scatter_chart",                # 5
+    "histogram_chart",              # 6
+    "waterfall_chart",              # 7
+    "flowchart",                    # 8
+    "hierarchy_vertical_diagram",   # 9
+    "hierarchy_horizontal_diagram", # 10
+    "table",                        # 11
+    "circle",                       # 12
+    "oval",                         # 13
+    "triangle_right",               # 14
+    "triangle_isosceles",           # 15
+    "diamond",                      # 16
+    "parallelogram",                # 17
+    "trapezoid",                    # 18
+    "pentagon",                     # 19
+    "hexagon",                      # 20
+    "octagon",                      # 21
+    "rectangle"                     # 22
 ]
 
 CLASS_NAME_TO_ID = {name: idx for idx, name in enumerate(CLASSES)}
@@ -209,43 +207,6 @@ def render_scatter_chart(width, height):
 
     return convert_figure_to_image(figure, width, height)
 
-def render_treemap_chart(width, height):
-    figure, axis = plt.subplots(figsize=(width/100, height/100), dpi=100)
-    axis.set_xlim(0, 1)
-    axis.set_ylim(0, 1)
-    axis.axis("off")
-
-    n        = random.randint(5, 12)
-    weights  = np.random.rand(n)
-    weights /= weights.sum()
-
-    # simple grid layout
-    y = 0.0
-    remaining_indices = list(range(n))
-
-    # create rows with items
-    while remaining_indices:
-        row_indices       = remaining_indices[: random.randint(1, min(4, len(remaining_indices)))]
-        remaining_indices = remaining_indices[len(row_indices):]
-        row_weight        = weights[row_indices].sum()
-        row_height        = row_weight
-
-        x = 0.0
-
-        # draw items in row
-        for idx in row_indices:
-            w = weights[idx] / row_weight
-            rect = patches.Rectangle((x, y), w, row_height, linewidth=1, fill=True, alpha=0.6, color=random_color())
-            axis.add_patch(rect)
-            axis.text(x + w/2, y + row_height/2, f"S{idx}", ha="center", va="center", fontsize=8)
-            x += w
-        y += row_height
-
-        if y > 1:
-            break
-
-    return convert_figure_to_image(figure, width, height)
-
 def render_histogram_chart(width, height):
     figure, axis = plt.subplots(figsize=(width/100, height/100), dpi=100)
     data = np.random.randn(500) * random.uniform(0.5, 2.0) + random.uniform(-1, 3)
@@ -316,13 +277,16 @@ def render_flowchart(width, height):
 
     return convert_figure_to_image(figure, width, height)
 
-def render_hierarchy_diagram(width, height):
+def render_hierarchy_vertical_diagram(width, height):
     figure, axis = plt.subplots(figsize=(width/100, height/100), dpi=100)
     axis.set_xlim(0, 10)
     axis.set_ylim(0, 10)
     axis.axis("off")
 
-    # nodes: (x, y, text)
+    BOX_W = 2
+    BOX_H = 1
+
+    # nodes: (center_x, center_y, text)
     nodes = \
     [
         (5, 8.5, "CEO"),
@@ -334,46 +298,85 @@ def render_hierarchy_diagram(width, height):
         (9, 3.5, "Team 4"),
     ]
 
+    # store patch references by name for connections
+    node_boxes = {}
+
     # draw nodes
     for x, y, text in nodes:
-        rect = patches.FancyBboxPatch((x-1, y-0.5), 2, 1, boxstyle="round,pad=0.2", linewidth=1, color=random_color())
-        axis.add_patch(rect)
+
+        # convert center to lower-left corner
+        lower_left_x = x - BOX_W / 2
+        lower_left_y = y - BOX_H / 2
+
+        rectangle = patches.FancyBboxPatch((lower_left_x, lower_left_y), BOX_W, BOX_H, boxstyle="round,pad=0.2",
+                                           linewidth=1.2, edgecolor="black", facecolor=random_color())
+        axis.add_patch(rectangle)
         axis.text(x, y, text, ha="center", va="center", fontsize=10)
 
-    # draw connections
-    def connect(x1, y1, x2, y2):
-        axis.plot([x1, x2], [y1, y2], linewidth=1)
+        node_boxes[text] = rectangle
 
-    connect(5, 8.5, 2.5, 6)
-    connect(5, 8.5, 7.5, 6)
-    connect(2.5, 6, 1, 3.5)
-    connect(2.5, 6, 4, 3.5)
-    connect(7.5, 6, 6, 3.5)
-    connect(7.5, 6, 9, 3.5)
+    # arrow connection
+    def connect_nodes(parent_text, child_text):
+        parent = node_boxes[parent_text]
+        child = node_boxes[child_text]
+
+        # bottom center of parent
+        x1 = parent.get_x() + BOX_W / 2
+        y1 = parent.get_y()  # bottom edge
+
+        # top center of child
+        x2 = child.get_x() + BOX_W / 2
+        y2 = child.get_y() + BOX_H  # top edge
+
+        axis.annotate("", xy=(x2, y2), xytext=(x1, y1), arrowprops=dict(arrowstyle="-|>", lw=1.2))
+
+    # draw connections
+    connect_nodes("CEO", "Manager A")
+    connect_nodes("CEO", "Manager B")
+    connect_nodes("Manager A", "Team 1")
+    connect_nodes("Manager A", "Team 2")
+    connect_nodes("Manager B", "Team 3")
+    connect_nodes("Manager B", "Team 4")
 
     return convert_figure_to_image(figure, width, height)
 
-def render_cycle_diagram(width, height):
+def render_hierarchy_horizontal_diagram(width, height):
     figure, axis = plt.subplots(figsize=(width/100, height/100), dpi=100)
-    axis.set_xlim(-1.5, 1.5)
-    axis.set_ylim(-1.5, 1.5)
+    axis.set_xlim(0, 15)
+    axis.set_ylim(0, 10)
     axis.axis("off")
 
-    n      = random.randint(3, 6)
-    angles = np.linspace(0, 2*np.pi, n, endpoint=False)
-    points = [(math.cos(a), math.sin(a)) for a in angles]
+    # box drawer with random_color()
+    def add_box(x, y, text):
+        rectangle = patches.FancyBboxPatch((x, y), 2.5, 0.8, boxstyle="round, pad=0.3", linewidth=1.2, edgecolor="black", facecolor=random_color())
+        axis.add_patch(rectangle)
+        axis.text(x + 1.25, y + 0.4, text, ha="center", va="center", fontsize=10)
+        return rectangle
 
-    # draw circles and labels
-    for idx, (x, y) in enumerate(points):
-        circle = patches.Circle((x, y), 0.3, linewidth=1, fill=True, alpha=0.7, color=random_color())
-        axis.add_patch(circle)
-        axis.text(x, y, f"S{idx+1}", ha="center", va="center", fontsize=9)
+    # correct connection (touch left/right edges)
+    def connect(box1, box2):
+        x1 = box1.get_x() + box1.get_width()
+        y1 = box1.get_y() + box1.get_height() / 2
+        x2 = box2.get_x()
+        y2 = box2.get_y() + box2.get_height() / 2
+        axis.annotate("", xy=(x2, y2), xytext=(x1, y1), arrowprops=dict(arrowstyle="->", lw=1.4))
 
-    # draw arrows
-    for idx in range(n):
-        x1, y1 = points[idx]
-        x2, y2 = points[(idx+1) % n]
-        axis.annotate("", xy=(x2 * 0.9, y2 * 0.9), xytext=(x1 * 0.9, y1 * 0.9), arrowprops=dict(arrowstyle="->", linewidth=1))
+    b_main = add_box(1, 4.5, "A")
+
+    b_B = add_box(5, 7, "B")
+    b_C = add_box(5, 4.5, "C")
+    b_D = add_box(5, 2, "D")
+    b_E = add_box(9, 8, "E")
+    b_F = add_box(9, 6, "F")
+    b_G = add_box(9, 4, "G")
+
+    # draw connections
+    connect(b_main, b_B)
+    connect(b_main, b_C)
+    connect(b_main, b_D)
+    connect(b_B, b_E)
+    connect(b_B, b_F)
+    connect(b_B, b_G)
 
     return convert_figure_to_image(figure, width, height)
 
@@ -408,20 +411,6 @@ def render_table(width, height):
             table.add_cell(row+1, col+1, width_cell, height_cell, text=data[row][col], loc="center", facecolor="white")
 
     axis.add_table(table)
-
-    return convert_figure_to_image(figure, width, height)
-
-def render_list_diagram(width, height):
-    figure, axis = plt.subplots(figsize=(width/100, height/100), dpi=100)
-    axis.axis("off")
-
-    n_items      = random.randint(4, 10)
-    y_start      = 0.9
-    line_spacing = 0.8 / max(n_items, 1)
-
-    for idx in range(n_items):
-        y = y_start - idx * line_spacing
-        axis.text(0.05, y, f"• Item {idx+1}", transform=axis.transAxes, fontsize=10, va="center")
 
     return convert_figure_to_image(figure, width, height)
 
@@ -570,14 +559,12 @@ RENDER_FUNCS = \
     "bar_chart": render_bar_chart,
     "area_chart": render_area_chart,
     "scatter_chart": render_scatter_chart,
-    "treemap_chart": render_treemap_chart,
     "histogram_chart": render_histogram_chart,
     "waterfall_chart": render_waterfall_chart,
     "flowchart": render_flowchart,
-    "hierarchy_diagram": render_hierarchy_diagram,
-    "cycle_diagram": render_cycle_diagram,
+    "hierarchy_vertical_diagram": render_hierarchy_vertical_diagram,
+    "hierarchy_horizontal_diagram": render_hierarchy_horizontal_diagram,
     "table": render_table,
-    "list_diagram": render_list_diagram,
     "circle": render_circle,
     "oval": render_oval,
     "triangle_right": render_triangle_right,
