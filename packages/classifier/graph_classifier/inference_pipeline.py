@@ -3,7 +3,7 @@ import os
 from ultralytics import YOLO
 
 # load trained yolo model
-def load_model(weights_path="best.pt"):
+def load_model(weights_path="trained_model.pt"):
     if not os.path.exists(weights_path):
         raise FileNotFoundError(f"Model file not found: {weights_path}")
     print(f"Loading model: {weights_path}")
@@ -60,8 +60,8 @@ def run_inference(model, source):
         source=source,
         save=True,         # saves annotated image
         save_txt=False,    # disable YOLO txt saving
-        conf=0.25,
-        iou=0.5,
+        conf=0.18,         # default: 0.25
+        iou=0.65,          # default: 0.5
         verbose=False
     )
     return results
