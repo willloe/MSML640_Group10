@@ -6,14 +6,14 @@ epochs: 30
 time: null
 patience: 20
 batch: 8
-imgsz: 640
+imgsz: 768
 save: true
 save_period: -1
 cache: false
 device: '0'
 workers: 2
 project: null
-name: train6
+name: train8
 exist_ok: false
 pretrained: true
 optimizer: Adam
@@ -103,4 +103,4 @@ auto_augment: randaugment
 erasing: 0.4
 cfg: null
 tracker: botsort.yaml
-save_dir: D:\Documents\Maryland\640\my_graph_class\runs\detect\train6
+save_dir: D:\Documents\Maryland\640\my_graph_class\runs\detect\train8
