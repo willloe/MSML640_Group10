@@ -71,6 +71,14 @@ class AbstractWithLayoutDataset(torch.utils.data.Dataset):
 
         bg = Image.open(bg_path).convert("RGB").resize((self.resolution, self.resolution), Image.BICUBIC)
         mask = cv2.imread(str(mask_path), cv2.IMREAD_UNCHANGED)
+        if mask is None:
+            raise RuntimeError(f"Failed to read mask: {mask_path}")
+
+        if mask.ndim == 2:
+            mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR)
+        elif mask.ndim == 3 and mask.shape[2] == 4:
+            mask = mask[:, :, :3]
+
         mask = cv2.resize(mask, (self.resolution, self.resolution), interpolation=cv2.INTER_NEAREST)
 
         boxes = parse_layout_mask(mask)
@@ -91,11 +99,11 @@ def parse_layout_mask(
 ) -> list[tuple[int, int, int, int]]:
     boxes = []
     for color, cls in [(title_color, "title"), (body_color, "body")]:
-        mask_bin = cv2.inRange(mask, np.array(color), np.array(color))
+        mask_bin = cv2.inRange(mask, color, color)
         contours, _ = cv2.findContours(mask_bin, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
         for c in contours:
             x, y, w, h = cv2.boundingRect(c)
-            if w * h < 50:  # skip tiny noise
+            if w * h < 50:
                 continue
             boxes.append((x, y, w, h))
     return boxes
