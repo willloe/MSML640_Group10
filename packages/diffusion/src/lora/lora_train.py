@@ -109,15 +109,15 @@ def _encode_prompts(pipe: "StableDiffusionXLPipeline", captions: List[str], devi
             do_classifier_free_guidance=False,
         )
 
-    print("DEBUG encode_prompt type:", type(out))
-    if isinstance(out, tuple):
-        for i, elem in enumerate(out):
-            if isinstance(elem, torch.Tensor):
-                print(f"  elem[{i}] shape={elem.shape}, ndim={elem.ndim}, dtype={elem.dtype}")
-            else:
-                print(f"  elem[{i}] type={type(elem)}")
-    else:
-        print("  tensor shape", out.shape, "ndim", out.ndim, "dtype", out.dtype)
+    # print("DEBUG encode_prompt type:", type(out))
+    # if isinstance(out, tuple):
+    #     for i, elem in enumerate(out):
+    #         if isinstance(elem, torch.Tensor):
+    #             print(f"  elem[{i}] shape={elem.shape}, ndim={elem.ndim}, dtype={elem.dtype}")
+    #         else:
+    #             print(f"  elem[{i}] type={type(elem)}")
+    # else:
+    #     print("  tensor shape", out.shape, "ndim", out.ndim, "dtype", out.dtype)
 
     prompt_embeds = None
     pooled = None
@@ -266,7 +266,7 @@ def main(argv=None):
     print("Training LoRA with config:", cfg, flush=True)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    dtype = torch.float32
+    dtype = torch.float16 if device == "cuda" else torch.float32
     print(f"Using device={device}, dtype={dtype}", flush=True)
 
     pipe = StableDiffusionXLPipeline.from_pretrained(cfg.model_id, torch_dtype=dtype)
@@ -309,7 +309,8 @@ def main(argv=None):
 
     while global_step < cfg.max_train_steps:
         for batch in dl:
-            print(f"Global step {global_step}, accumulation {accum}", flush=True)
+            if global_step % 10 == 0 and accum == 0:
+                print(f"Global step {global_step}, accumulation {accum}", flush=True)
             pixels = batch["pixel_values"].to(device, dtype=dtype)
             captions = batch["caption"]
 
@@ -326,9 +327,9 @@ def main(argv=None):
             t = timesteps.to(device=device, dtype=timestep_dtype)
 
             noisy_latents = scheduler.add_noise(latents, noise, timesteps)
-            print("encoding prompts...")
+            # print("encoding prompts...")
             prompt_embeds, pooled_embeds = _encode_prompts(pipe, captions, device=device)
-            print("prompt_embeds:", prompt_embeds.shape, prompt_embeds.dtype)
+            # print("prompt_embeds:", prompt_embeds.shape, prompt_embeds.dtype)
 
             proj_dim_target = getattr(pipe.text_encoder_2.config, "projection_dim", None)
             if proj_dim_target is None:
@@ -344,7 +345,7 @@ def main(argv=None):
             if pooled_embeds.shape[-1] != proj_dim_target:
                 pooled_embeds = pooled_embeds[..., :proj_dim_target]
 
-            unet_dtype = torch.float32
+            unet_dtype = dtype
             prompt_embeds = prompt_embeds.to(device=device, dtype=unet_dtype)
             pooled_embeds = pooled_embeds.to(device=device, dtype=unet_dtype)
             noisy_latents = noisy_latents.to(device=device, dtype=unet_dtype)
