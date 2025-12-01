@@ -266,7 +266,7 @@ def main(argv=None):
     print("Training LoRA with config:", cfg, flush=True)
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    dtype = torch.float16 if device == "cuda" else torch.float32
+    dtype = torch.float32
     print(f"Using device={device}, dtype={dtype}", flush=True)
 
     pipe = StableDiffusionXLPipeline.from_pretrained(cfg.model_id, torch_dtype=dtype)
@@ -345,7 +345,7 @@ def main(argv=None):
             if pooled_embeds.shape[-1] != proj_dim_target:
                 pooled_embeds = pooled_embeds[..., :proj_dim_target]
 
-            unet_dtype = dtype
+            unet_dtype = torch.float32
             prompt_embeds = prompt_embeds.to(device=device, dtype=unet_dtype)
             pooled_embeds = pooled_embeds.to(device=device, dtype=unet_dtype)
             noisy_latents = noisy_latents.to(device=device, dtype=unet_dtype)
