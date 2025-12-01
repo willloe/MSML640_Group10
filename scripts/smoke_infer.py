@@ -15,31 +15,16 @@ def main(argv=None):
     ap = argparse.ArgumentParser(
         description="Simple SDXL/LoRA smoke test on a synthetic slide layout."
     )
-    ap.add_argument("--out_dir", default=str(ROOT / "outputs"),
-                    help="Folder to save the generated image.")
-    ap.add_argument("--out_name", default="smoke_infer.png",
-                    help="Output filename (PNG).")
-    ap.add_argument("--width", type=int, default=1024,
-                    help="Output width in pixels (slide-like).")
-    ap.add_argument("--height", type=int, default=576,
-                    help="Output height in pixels (slide-like).")
-    ap.add_argument("--steps", type=int, default=28,
-                    help="Number of diffusion steps.")
-    ap.add_argument("--guidance", type=float, default=4.0,
-                    help="Classifier-free guidance scale.")
-    ap.add_argument("--seed", type=int, default=777,
-                    help="Random seed for layout + generation.")
-    ap.add_argument(
-        "--control_mode",
-        choices=["none", "element", "safe", "edge"],
-        default="none"
-    )
-    ap.add_argument(
-        "--lora_dir",
-        default=None,
-        help="Optional LoRA directory (e.g. outputs/lora/runs/exp01/final_lora). "
-             "If omitted or missing, run base SDXL only."
-    )
+    ap.add_argument("--lora_dir", default=None, help="Path to LoRA weights folder")
+    ap.add_argument("--out_dir", default=str(ROOT / "outputs"), help="Folder to save the generated image.")
+    ap.add_argument("--out_name", default="smoke_infer.png", help="Output filename (PNG).")
+    ap.add_argument("--width", type=int, default=1024, help="Output width in pixels (slide-like).")
+    ap.add_argument("--height", type=int, default=576, help="Output height in pixels (slide-like).")
+    ap.add_argument("--steps", type=int, default=28, help="Number of diffusion steps.")
+    ap.add_argument("--guidance", type=float, default=4.0, help="Classifier-free guidance scale.")
+    ap.add_argument("--seed", type=int, default=777, help="Random seed for layout + generation.")
+    ap.add_argument("--control_mode", choices=["element", "safe", "edge"], default="safe")
+    ap.add_argument("--use_controlnet", type=int, default=0, help="Set to 1 to use ControlNet with a synthetic control_map.")
     args = ap.parse_args(argv)
 
     samples = sample_condition_batch(
@@ -58,8 +43,8 @@ def main(argv=None):
         else:
             print(f"WARNING: LoRA dir {ld} not found; using base model only.")
 
-    use_controlnet = (args.control_mode != "none")
-    control_from = None if not use_controlnet else args.control_mode
+    use_controlnet = bool(args.use_controlnet)
+    control_from = args.control_mode if use_controlnet else None
 
     out_path = generate_and_mask(
         palette=s["palette"],
