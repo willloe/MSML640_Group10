@@ -119,22 +119,23 @@ def main(argv=None) -> int:
         def eval_one(path: Path, variant: str) -> dict:
             img = Image.open(path).convert("RGB")
 
-            wcag = wcag_pass_rate(
+            wcag_pass, wcag_details = wcag_pass_rate(
                 img,
                 text_size=args.text_size,
                 return_details=True,
             )
+
             layout_metrics = layout_uniformity_score(img, layout, safe_zone=safe_zone)
 
             row = {
                 "seed": seed,
                 "variant": variant,
                 "image_path": str(path.relative_to(out_dir)),
-                "wcag_pass_rate": wcag.get("pass_rate", float("nan")),
-                "wcag_passes": wcag.get("passes", 0),
-                "wcag_total": wcag.get("total", 0),
-                "mean_contrast": wcag.get("mean_contrast", float("nan")),
-                "min_contrast": wcag.get("min_contrast", float("nan")),
+                "wcag_pass_rate": float(wcag_pass),
+                "wcag_passes": wcag_details.get("passes", 0),
+                "wcag_total": wcag_details.get("total", 0),
+                "mean_contrast": wcag_details.get("mean_contrast", float("nan")),
+                "min_contrast": wcag_details.get("min_contrast", float("nan")),
                 "safe_std": layout_metrics.get("safe_std", float("nan")),
                 "bg_std": layout_metrics.get("bg_std", float("nan")),
                 "uniformity": layout_metrics.get("uniformity", float("nan")),
