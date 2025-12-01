@@ -35,8 +35,8 @@ def render_slide_with_text(
     draw_overlay = ImageDraw.Draw(overlay)
     draw_text = ImageDraw.Draw(overlay)
 
-    title_font = _load_font(size=int(H * 0.06))
-    body_font  = _load_font(size=int(H * 0.035))
+    title_font = _load_font(size=32)
+    body_font  = _load_font(size=18)
 
     elements = layout.get("elements", [])
 
@@ -51,10 +51,19 @@ def render_slide_with_text(
             fill=(255, 255, 255, panel_alpha),
         )
 
-    if elements:
-        tx, ty, tw, th = elements[0]["bbox_xywh"]
+    title_el = None
+    body_el = None
+    for el in elements:
+        cls = el.get("class")
+        if cls == "title" and title_el is None:
+            title_el = el
+        elif cls == "body" and body_el is None:
+            body_el = el
+
+    # Draw title text
+    if title_el is not None:
+        tx, ty, tw, th = title_el["bbox_xywh"]
         tx0, ty0 = int(tx), int(ty)
-        tx1, ty1 = int(tx + tw), int(ty + th)
 
         pad_x = int(tw * 0.05)
         pad_y = int(th * 0.15)
@@ -67,9 +76,8 @@ def render_slide_with_text(
             fill=(30, 30, 30, 255),
         )
 
-    body_box_idx = 1
-    if body_box_idx < len(elements):
-        bx, by, bw, bh = elements[body_box_idx]["bbox_xywh"]
+    if body_el is not None:
+        bx, by, bw, bh = body_el["bbox_xywh"]
         bx0, by0 = int(bx), int(by)
         pad_x = int(bw * 0.05)
         pad_y = int(bh * 0.10)
