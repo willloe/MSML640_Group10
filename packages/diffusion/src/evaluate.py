@@ -1,6 +1,6 @@
 import numpy as np
 from PIL import Image
-from typing import Union, Tuple, List, Dict
+from typing import Union, Tuple, List, Dict, Optional
 from pathlib import Path
 
 
@@ -167,6 +167,62 @@ def layout_safety(
         'total_pixels': int(total_pixels)
     }
 
+def _layout_masks_from_elements(
+    img: Image.Image,
+    layout: Dict,
+) -> tuple[np.ndarray, np.ndarray]:
+    w, h = img.size
+    content_mask = np.zeros((h, w), dtype=bool)
+
+    for el in layout.get("elements", []):
+        bbox = el.get("bbox_xywh")
+        if not bbox or len(bbox) != 4:
+            continue
+        x, y, bw, bh = bbox
+        x0 = max(int(round(x)), 0)
+        y0 = max(int(round(y)), 0)
+        x1 = min(int(round(x + bw)), w)
+        y1 = min(int(round(y + bh)), h)
+        if x1 <= x0 or y1 <= y0:
+            continue
+        content_mask[y0:y1, x0:x1] = True
+
+    background_mask = ~content_mask
+    return content_mask, background_mask
+
+
+def layout_uniformity_score(
+    img: Image.Image,
+    layout: Dict,
+    safe_zone: Optional[Dict] = None,
+) -> Dict[str, float]:
+    gray = np.array(img.convert("L"), dtype=np.float32) / 255.0
+    content_mask, background_mask = _layout_masks_from_elements(img, layout)
+
+    safe_pixels = gray[content_mask]
+    bg_pixels = gray[background_mask]
+
+    if safe_pixels.size == 0:
+        safe_std = float("nan")
+    else:
+        safe_std = float(safe_pixels.std())
+
+    if bg_pixels.size == 0:
+        bg_std = float("nan")
+    else:
+        bg_std = float(bg_pixels.std())
+
+    eps = 1e-6
+    if np.isfinite(safe_std) and safe_std > 0 and np.isfinite(bg_std):
+        uniformity = float(bg_std / (safe_std + eps))
+    else:
+        uniformity = float("nan")
+
+    return {
+        "safe_std": safe_std,
+        "bg_std": bg_std,
+        "uniformity": uniformity,
+    }
 
 if __name__ == "__main__":
 
