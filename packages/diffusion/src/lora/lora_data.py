@@ -2,6 +2,13 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import List, Optional
+from PIL import Image
+import cv2
+import random
+import numpy as np
+import torch
+
+from synthetic import _smooth_regions_inplace
 
 @dataclass
 class ImageSample:
@@ -43,3 +50,52 @@ def build_manifest(images_dir: Path, out_path: Path, fallback_caption: Optional[
             rec = {"image": str(s.path), "caption": s.caption}
             f.write(json.dumps(rec) + "\n")
     return samples
+
+class AbstractWithLayoutDataset(torch.utils.data.Dataset):
+    def __init__(self, bg_dir: Path, layout_dir: Path, resolution: int = 512, alpha: float = 0.6):
+        self.bg_paths = sorted([p for ext in ("*.png", "*.jpg", "*.jpeg") for p in bg_dir.glob(ext)])
+        self.mask_paths = sorted(list(layout_dir.glob("*.safe.png")))
+        if not self.bg_paths:
+            raise RuntimeError(f"No images in {bg_dir}")
+        if not self.mask_paths:
+            raise RuntimeError(f"No .safe.png masks in {layout_dir}")
+        self.resolution = resolution
+        self.alpha = alpha
+
+    def __len__(self):
+        return max(len(self.bg_paths), len(self.mask_paths))
+
+    def __getitem__(self, idx):
+        bg_path = self.bg_paths[idx % len(self.bg_paths)]
+        mask_path = random.choice(self.mask_paths)
+
+        bg = Image.open(bg_path).convert("RGB").resize((self.resolution, self.resolution), Image.BICUBIC)
+        mask = cv2.imread(str(mask_path), cv2.IMREAD_UNCHANGED)
+        mask = cv2.resize(mask, (self.resolution, self.resolution), interpolation=cv2.INTER_NEAREST)
+
+        boxes = parse_layout_mask(mask)
+
+        arr = np.array(bg).astype(np.float32) / 255.0
+        arr = arr * 2.0 - 1.0
+        arr = np.transpose(arr, (2, 0, 1))
+        tensor = torch.from_numpy(arr)
+
+        _smooth_regions_inplace(tensor, boxes, alpha=self.alpha)
+        return {"pixel_values": tensor, "caption": "abstract layout background"}
+
+
+def parse_layout_mask(
+    mask: np.ndarray,
+    title_color=(0, 0, 255),
+    body_color=(0, 255, 0),
+) -> list[tuple[int, int, int, int]]:
+    boxes = []
+    for color, cls in [(title_color, "title"), (body_color, "body")]:
+        mask_bin = cv2.inRange(mask, np.array(color), np.array(color))
+        contours, _ = cv2.findContours(mask_bin, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for c in contours:
+            x, y, w, h = cv2.boundingRect(c)
+            if w * h < 50:  # skip tiny noise
+                continue
+            boxes.append((x, y, w, h))
+    return boxes

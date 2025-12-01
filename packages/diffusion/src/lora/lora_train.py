@@ -6,8 +6,6 @@ from pathlib import Path
 import random
 from typing import List, Optional
 
-from zmq import device
-
 try:
     import torch
     import torch.nn.functional as F
@@ -31,7 +29,7 @@ except Exception as e:
     PeftLoraConfig = None
     LoraLayer = None
 
-from .lora_data import build_manifest
+from .lora_data import build_manifest, AbstractWithLayoutDataset
 
 @dataclass
 class LoraTrainConfig:
@@ -51,6 +49,7 @@ class LoraTrainConfig:
     layout_preproc: bool = False
     layout_preproc_alpha: float = 0.6
     layout_preproc_recipe: Optional[str] = None
+    layout_mask_dir: Optional[str] = None
 
 def _write_config(cfg: LoraTrainConfig, out_path: Path) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -234,7 +233,7 @@ def main(argv=None):
     ap.add_argument("--layout-preproc", action="store_true")
     ap.add_argument("--layout-preproc-alpha", type=float, default=0.6)
     ap.add_argument("--layout-preproc-recipe", type=str, default=None, choices=[None, "academic", "marketing", "minimalist"])
-
+    ap.add_argument("--layout-mask-dir", type=str, default=None)
     args = ap.parse_args(argv)
     print("Entered main(), parsed args:", args, flush=True)
 
@@ -272,6 +271,7 @@ def main(argv=None):
         layout_preproc=bool(args.layout_preproc),
         layout_preproc_alpha=float(args.layout_preproc_alpha),
         layout_preproc_recipe=args.layout_preproc_recipe,
+        layout_mask_dir=str(Path(args.layout_mask_dir).resolve()) if args.layout_mask_dir else None,
     )
     _write_config(cfg, output_dir / "lora_config.json")
     print("Training LoRA with config:", cfg, flush=True)
@@ -309,7 +309,13 @@ def main(argv=None):
         eps=1e-6,
         weight_decay=0.0,
     )
-    ds = JsonlImageDataset(Path(cfg.train_jsonl), resolution=cfg.resolution)
+    if cfg.layout_preproc and cfg.layout_mask_dir is not None and cfg.layout_preproc_recipe is None:
+        bg_dir = Path(args.images_dir).resolve()
+        layout_dir = Path(cfg.layout_mask_dir).resolve()
+        print(f"Using AbstractWithLayoutDataset(bg_dir={bg_dir}, layout_dir={layout_dir})", flush=True)
+        ds = AbstractWithLayoutDataset(bg_dir=bg_dir,layout_dir=layout_dir, resolution=cfg.resolution,alpha=cfg.layout_preproc_alpha)
+    else:
+        ds = JsonlImageDataset(Path(cfg.train_jsonl), resolution=cfg.resolution)
     dl = DataLoader(ds, batch_size=cfg.batch_size, shuffle=True, num_workers=0, drop_last=True, pin_memory=(device == "cuda"))
     print(f"DataLoader created with {len(ds)} items.", flush=True)
 
@@ -325,7 +331,8 @@ def main(argv=None):
             pixels = batch["pixel_values"].to(device, dtype=dtype)
             captions = batch["caption"]
 
-            if cfg.layout_preproc:
+            use_runtime_layouts = cfg.layout_preproc and cfg.layout_preproc_recipe is not None and cfg.layout_mask_dir is None
+            if use_runtime_layouts:
                 B, C, H, W = pixels.shape
 
                 # Sample synthetic layouts for this batch
