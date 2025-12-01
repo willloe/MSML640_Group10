@@ -1,6 +1,7 @@
 import argparse
 import json
 from dataclasses import dataclass, asdict
+from synthetic import sample_condition_batch, smooth_layout_regions
 from pathlib import Path
 import random
 from typing import List, Optional
@@ -47,6 +48,9 @@ class LoraTrainConfig:
     mixed_precision: str = "fp16"
     use_8bit_adam: bool = True
     seed: int = 42
+    layout_preproc: bool = False
+    layout_preproc_alpha: float = 0.6
+    layout_preproc_recipe: Optional[str] = None
 
 def _write_config(cfg: LoraTrainConfig, out_path: Path) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -227,6 +231,10 @@ def main(argv=None):
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--train_jsonl", default=None, help="If absent, create in <output_dir>/manifests/captions.jsonl from --images_dir.")
     ap.add_argument("--fallback_caption", default=None)
+    ap.add_argument("--layout-preproc", action="store_true")
+    ap.add_argument("--layout-preproc-alpha", type=float, default=0.6)
+    ap.add_argument("--layout-preproc-recipe", type=str, default=None, choices=[None, "academic", "marketing", "minimalist"])
+
     args = ap.parse_args(argv)
     print("Entered main(), parsed args:", args, flush=True)
 
@@ -261,6 +269,9 @@ def main(argv=None):
         max_train_steps=int(args.max_train_steps),
         checkpoint_steps=int(args.checkpoint_steps),
         seed=int(args.seed),
+        layout_preproc=bool(args.layout_preproc),
+        layout_preproc_alpha=float(args.layout_preproc_alpha),
+        layout_preproc_recipe=args.layout_preproc_recipe,
     )
     _write_config(cfg, output_dir / "lora_config.json")
     print("Training LoRA with config:", cfg, flush=True)
@@ -313,6 +324,24 @@ def main(argv=None):
                 print(f"Global step {global_step}, accumulation {accum}", flush=True)
             pixels = batch["pixel_values"].to(device, dtype=dtype)
             captions = batch["caption"]
+
+            if cfg.layout_preproc:
+                B, C, H, W = pixels.shape
+
+                # Sample synthetic layouts for this batch
+                layout_samples = sample_condition_batch(
+                    n=B,
+                    canvas_size=(H, W),
+                    seed=cfg.seed + global_step if cfg.seed is not None else None,
+                    recipe=cfg.layout_preproc_recipe,
+                )
+                layouts = [s["layout"] for s in layout_samples]
+
+                pixels = smooth_layout_regions(
+                    pixels,
+                    layouts,
+                    alpha=cfg.layout_preproc_alpha,
+                )
 
             latents = _vae_encode(pipe, pixels)
             # noise_offset = 0.1
