@@ -92,18 +92,19 @@ class AbstractWithLayoutDataset(torch.utils.data.Dataset):
         return {"pixel_values": tensor, "caption": "abstract layout background"}
 
 
-def parse_layout_mask(
-    mask: np.ndarray,
-    title_color=(0, 0, 255),
-    body_color=(0, 255, 0),
-) -> list[tuple[int, int, int, int]]:
+def parse_layout_mask(mask: np.ndarray) -> list[tuple[int, int, int, int]]:
+    if mask.ndim == 3:
+        mask_gray = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+    else:
+        mask_gray = mask.copy()
+
+    _, mask_bin = cv2.threshold(mask_gray, 10, 255, cv2.THRESH_BINARY)
+    contours, _ = cv2.findContours(mask_bin, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     boxes = []
-    for color, cls in [(title_color, "title"), (body_color, "body")]:
-        mask_bin = cv2.inRange(mask, color, color)
-        contours, _ = cv2.findContours(mask_bin, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        for c in contours:
-            x, y, w, h = cv2.boundingRect(c)
-            if w * h < 50:
-                continue
-            boxes.append((x, y, w, h))
+    for c in contours:
+        x, y, w, h = cv2.boundingRect(c)
+        if w * h < 200:
+            continue
+        boxes.append((x, y, w, h))
+
     return boxes
