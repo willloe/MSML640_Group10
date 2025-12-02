@@ -316,7 +316,7 @@ def main(argv=None):
         ds = AbstractWithLayoutDataset(bg_dir=bg_dir,layout_dir=layout_dir, resolution=cfg.resolution,alpha=cfg.layout_preproc_alpha)
     else:
         ds = JsonlImageDataset(Path(cfg.train_jsonl), resolution=cfg.resolution)
-    dl = DataLoader(ds, batch_size=cfg.batch_size, shuffle=True, num_workers=0, drop_last=True, pin_memory=(device == "cuda"))
+    dl = DataLoader(ds, batch_size=cfg.batch_size, shuffle=True, num_workers=2, drop_last=True, pin_memory=(device == "cuda"))
     print(f"DataLoader created with {len(ds)} items.", flush=True)
 
     scheduler = pipe.scheduler
