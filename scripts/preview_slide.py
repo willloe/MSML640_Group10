@@ -35,8 +35,8 @@ def render_slide_with_text(
     draw_overlay = ImageDraw.Draw(overlay)
     draw_text = ImageDraw.Draw(overlay)
 
-    title_font = _load_font(size=32)
-    body_font  = _load_font(size=18)
+    title_font = _load_font(size=128)
+    body_font  = _load_font(size=64)
 
     elements = layout.get("elements", [])
 
