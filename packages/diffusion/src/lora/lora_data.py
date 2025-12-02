@@ -98,7 +98,7 @@ def parse_layout_mask(mask: np.ndarray) -> list[tuple[int, int, int, int]]:
     else:
         mask_gray = mask.copy()
 
-    _, mask_bin = cv2.threshold(mask_gray, 10, 255, cv2.THRESH_BINARY)
+    _, mask_bin = cv2.threshold(mask_gray, 250, 255, cv2.THRESH_BINARY_INV)
     contours, _ = cv2.findContours(mask_bin, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     boxes = []
     for c in contours:
