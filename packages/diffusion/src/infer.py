@@ -138,7 +138,7 @@ def generate_and_mask(
 
     generator = None
     if seed is not None:
-        generator = torch.Generator(device="cuda").manual_seed(int(seed))
+        generator = torch.Generator(device=dev).manual_seed(int(seed))
 
     img: Image.Image
     if use_controlnet:
@@ -152,11 +152,14 @@ def generate_and_mask(
             controlnet_model_id = "diffusers/controlnet-canny-sdxl-1.0"
 
         print(f"Using ControlNet: True ({controlnet_model_id}), strength={control_strength}")
+        print(f"ControlNet mode: {control_from}")
+        print("control_map dtype/shape:",
+              None if control_map is None else (control_map.dtype, control_map.shape))
 
         control_image = control_image_from_map(control_map=control_map, safe_zone=safe_zone, size=(int(width), int(height)), mode=str(control_from))
-        controlnet = ControlNetModel.from_pretrained(controlnet_model_id, dtype=torch.float16)
+        controlnet = ControlNetModel.from_pretrained(controlnet_model_id, torch_dtype=torch.float16)
         pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
-            model_id, controlnet=controlnet, dtype=torch.float16
+            model_id, controlnet=controlnet, torch_dtype=torch.float16
         )
         try:
             pipe.enable_xformers_memory_efficient_attention()
