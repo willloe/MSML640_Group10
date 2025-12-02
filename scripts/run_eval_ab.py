@@ -19,39 +19,21 @@ def _ensure_dir(p: Path) -> None:
 
 
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(
-        description=(
-            "Generate a small batch of slides with base SDXL vs SDXL+LoRA, "
-            "run WCAG + layout metrics, and save a CSV."
-        )
-    )
-    ap.add_argument(
-        "--lora_dir",
-        required=True,
-        help="Folder containing LoRA weights (e.g., outputs/lora/runs/exp01/final_lora)",
-    )
-    ap.add_argument(
-        "--out_dir",
-        default="outputs/lora_ab_eval",
-        help="Directory to store generated images and CSV metrics.",
-    )
-    ap.add_argument(
-        "--num_samples",
-        type=int,
-        default=8,
-        help="Number of synthetic layouts / seeds to evaluate.",
-    )
+    ap = argparse.ArgumentParser()
+
+    ap.add_argument("--lora_dir", required=True)
+    ap.add_argument("--out_dir", required=True)
+    ap.add_argument("--num_samples", type=int, default=16)
     ap.add_argument("--width", type=int, default=1024)
     ap.add_argument("--height", type=int, default=576)
     ap.add_argument("--steps", type=int, default=28)
-    ap.add_argument("--guidance", type=float, default=5.5)
+    ap.add_argument("--guidance", type=float, default=4.0)
     ap.add_argument("--seed_start", type=int, default=777)
-    ap.add_argument(
-        "--text_size",
-        choices=["normal", "large"],
-        default="normal",
-        help="WCAG text-size regime for contrast thresholds.",
-    )
+    ap.add_argument("--text_size", type=str, default="normal", choices=["small", "normal", "large"])
+    ap.add_argument("--model_id", type=str, default="stabilityai/stable-diffusion-xl-base-1.0")
+    ap.add_argument("--controlnet_id", type=str, default="diffusers/controlnet-canny-sdxl-1.0")
+    ap.add_argument("--control_mode", type=str, default="safe", choices=["safe", "element", "none"])
+    ap.add_argument("--control_strength", type=float, default=0.8)
     args = ap.parse_args(argv)
 
     out_dir = Path(args.out_dir).resolve()
@@ -86,7 +68,7 @@ def main(argv=None) -> int:
             palette=palette,
             safe_zone=safe_zone,
             control_map=control_map,
-            model_id="stabilityai/stable-diffusion-xl-base-1.0",
+            model_id=args.model_id,
             steps=args.steps,
             guidance=args.guidance,
             width=args.width,
@@ -96,6 +78,9 @@ def main(argv=None) -> int:
                 "illegible text, cluttered layout, high-frequency noise, "
                 "heavy gradients, harsh contrast bands"
             ),
+            control_mode=args.control_mode,
+            control_strength=args.control_strength,
+            controlnet_id=args.controlnet_id,
         )
 
         base_name = f"seed{seed}_base.png"
