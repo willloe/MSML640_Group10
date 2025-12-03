@@ -37,7 +37,11 @@ def control_image_from_map(control_map: torch.Tensor, safe_zone: Optional[torch.
         if safe_zone is None:
             raise ValueError("safe_zone tensor is required when mode='safe'")
         sz = safe_zone.squeeze(0).detach().cpu().numpy().astype(np.float32)
-        img = to_uint8(sz)
+        sz = np.clip(sz, 0.0, 1.0)
+
+        eroded = erode_3x3_binary(sz)
+        border = np.clip(sz - eroded, 0.0, 1.0)
+        img = to_uint8(border)
     elif mode == "edge":
         eroded = erode_3x3_binary(element_mask)
         border = np.clip(element_mask - eroded, 0.0, 1.0)
