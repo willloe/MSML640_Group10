@@ -98,18 +98,12 @@ def parse_layout_mask(mask: np.ndarray) -> list[tuple[int, int, int, int]]:
     else:
         mask_gray = mask.copy()
 
-    _, mask_bin = cv2.threshold(mask_gray, 200, 255, cv2.THRESH_BINARY)
+    _, mask_bin = cv2.threshold(mask_gray, 250, 255, cv2.THRESH_BINARY_INV)
     contours, _ = cv2.findContours(mask_bin, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     boxes = []
-    h_img, w_img = mask_gray.shape[:2]
-
     for c in contours:
         x, y, w, h = cv2.boundingRect(c)
-        area = w * h
-        if area < 200:
-            continue
-
-        if area > 0.98 * w_img * h_img:
+        if w * h < 200:
             continue
         boxes.append((x, y, w, h))
 
