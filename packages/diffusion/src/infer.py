@@ -100,8 +100,8 @@ def generate_and_mask(
     control_strength: float = 0.8,
     control_from: str = "element",  # "element" | "safe" | "edge"
     scheduler: Optional[str] = None,
-    debug: bool = True,
     apply_safe_mask: bool = False,
+    prompt: Optional[str] = None,
     **kwargs,
 ) -> str:
     if "num_inference_steps" in kwargs and kwargs["num_inference_steps"] is not None:
@@ -123,7 +123,8 @@ def generate_and_mask(
         )
 
     dev = device or ("cuda" if torch.cuda.is_available() else "cpu")
-    prompt = prompt_from_palette(palette)
+    if prompt is None:
+        prompt = prompt_from_palette(palette)
     print("Prompt:", prompt)
 
     out_dir = Path(out_dir)
