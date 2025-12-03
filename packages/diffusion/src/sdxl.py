@@ -159,8 +159,8 @@ def prepare_prompt(prompt, palette=None):
 
     return ", ".join([p for p in parts if p])
 
-def prompt_from_palette(palette, preset = "academic_clean"):
-    base = PROMPT_PRESETS.get(preset, PROMPT_PRESETS["academic_clean"])
+def prompt_from_palette(palette, preset = "academic"):
+    base = PROMPT_PRESETS.get(preset, PROMPT_PRESETS["academic"])
     primary = palette.get("primary", "#75E4E4")
     secondary = palette.get("secondary", "#BC8AAC")
     accent = palette.get("accent", "#14E4C7")
