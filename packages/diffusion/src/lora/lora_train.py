@@ -326,7 +326,7 @@ def main(argv=None):
 
     while global_step < cfg.max_train_steps:
         for batch in dl:
-            if global_step % 10 == 0 and accum == 0:
+            if global_step % 40 == 0 and accum == 0:
                 print(f"Global step {global_step}, accumulation {accum}", flush=True)
             pixels = batch["pixel_values"].to(device, dtype=dtype)
             captions = batch["caption"]
