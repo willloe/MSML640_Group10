@@ -15,6 +15,34 @@ except Exception:
     DDIMScheduler = None
     DPMSolverMultistepScheduler = None
 
+PROMPT_PRESETS = {
+    "default": (
+        "single minimal professional presentation slide background, "
+        "soft gradients, large clean content area, low contrast, "
+        "no text, no logos, no collage, no grid"
+    ),
+    "academic": (
+        "clean academic presentation slide background, white or light canvas, "
+        "subtle sectioning for title and bullet points, low contrast, "
+        "no photos, no heavy textures, no collage"
+    ),
+    "noisy": (
+        "highly textured abstract geometric background, layered shapes and patterns, "
+        "vibrant but not neon colors, noticeable noise and detail, "
+        "complex visual structure, no text or logos"
+    ),
+    "gradient": (
+        "smooth multi-tone gradient presentation background, soft transitions, "
+        "no hard shapes, no grid, no collage, very low texture, "
+        "large empty regions for overlaying text"
+    ),
+    "photo": (
+        "photographic background with shallow depth of field, "
+        "soft bokeh and light leaks, muted colors, "
+        "subject off-center, large negative space"
+    ),
+}
+
 def _pick_device(device):
     if device is not None:
         return str(device)
@@ -131,10 +159,13 @@ def prepare_prompt(prompt, palette=None):
 
     return ", ".join([p for p in parts if p])
 
-def prompt_from_palette(palette):
-    base = (
-        "single minimal professional presentation slide background, "
-        "soft gradients, large clean content area, low contrast, "
-        "no text, no logos, no collage, no grid"
+def prompt_from_palette(palette, preset = "academic_clean"):
+    base = PROMPT_PRESETS.get(preset, PROMPT_PRESETS["academic_clean"])
+    primary = palette.get("primary", "#75E4E4")
+    secondary = palette.get("secondary", "#BC8AAC")
+    accent = palette.get("accent", "#14E4C7")
+    color_str = (
+        f"primary color {primary}, secondary color {secondary}, accent color {accent}, "
+        "subtle texture"
     )
-    return prepare_prompt(base, palette)
+    return f"{base}, {color_str}"
