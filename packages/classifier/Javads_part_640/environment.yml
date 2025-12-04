@@ -1,0 +1,13 @@
+name: slide_detection
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - tqdm
+  - pillow
+  - ultralytics
+  - pip:
+    - opencv-python-headless
+    - datasets

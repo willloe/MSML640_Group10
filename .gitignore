@@ -11,6 +11,10 @@ artifacts/
 packages/classifier/images/SlideVQA/full_dataset/annotated/
 packages/classifier/images/SlideVQA/full_dataset/original/
 packages/classifier/images/SlideVQA/by_class
+packages/classifier/Javads_part_640/diagram_node_yolo/SlideComponents.v2i.yolov8-obb
+packages/classifier/Javads_part_640/ai2d
+packages/classifier/Javads_part_640/dataset_logos_images/
+packages/classifier/Javads_part_640/dataset_diagrams_ai2d
 
 # Misc
 .DS_Store
