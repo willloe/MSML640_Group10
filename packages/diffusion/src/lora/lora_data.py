@@ -15,6 +15,16 @@ class ImageSample:
     path: Path
     caption: str
 
+SLIDESAFE_TOKEN = "slidesafe"
+
+def _with_slidesafe(caption: str) -> str:
+    caption = (caption or "").strip()
+    if not caption:
+        return SLIDESAFE_TOKEN
+    if SLIDESAFE_TOKEN in caption:
+        return caption
+    return f"{SLIDESAFE_TOKEN} {caption}"
+
 def _read_sidecar_caption(img: Path) -> Optional[str]:
     txt = img.with_suffix(".txt")
     if txt.exists():
@@ -31,7 +41,8 @@ def _read_sidecar_caption(img: Path) -> Optional[str]:
     return None
 
 def default_style_caption() -> str:
-    return "professional slide background, soft low-frequency texture, high readability, minimal clutter"
+    base = "professional slide background, soft low-frequency texture, high readability, minimal clutter"
+    return _with_slidesafe(base)
 
 def build_manifest(images_dir: Path, out_path: Path, fallback_caption: Optional[str] = None) -> List[ImageSample]:
     images = []
@@ -42,6 +53,7 @@ def build_manifest(images_dir: Path, out_path: Path, fallback_caption: Optional[
         cap = _read_sidecar_caption(img)
         if not cap:
             cap = fallback_caption or default_style_caption()
+        cap = _with_slidesafe(cap)
         samples.append(ImageSample(path=img, caption=cap))
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -89,7 +101,8 @@ class AbstractWithLayoutDataset(torch.utils.data.Dataset):
         tensor = torch.from_numpy(arr)
 
         _smooth_regions_inplace(tensor, boxes, alpha=self.alpha)
-        return {"pixel_values": tensor, "caption": "abstract layout background"}
+        caption = _with_slidesafe("abstract layout background")
+        return {"pixel_values": tensor, "caption": caption}
 
 
 def parse_layout_mask(mask: np.ndarray) -> list[tuple[int, int, int, int]]:

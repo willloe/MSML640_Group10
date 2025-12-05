@@ -8,13 +8,13 @@ import json
 from peft import LoraConfig as PeftLoraConfig
 from peft.tuners.lora import LoraLayer
 try:
-    from sdxl import load_sdxl_with_lora, prompt_from_palette, _set_scheduler as _sdxl_set_scheduler
+    from sdxl import load_sdxl_with_lora, prompt_from_palette, add_slidesafe_token, _set_scheduler as _sdxl_set_scheduler
 except Exception:
     import sys
     ROOT = Path(__file__).resolve().parents[2]
     if str(ROOT) not in sys.path:
         sys.path.append(str(ROOT))
-    from sdxl import load_sdxl_with_lora, prompt_from_palette
+    from sdxl import load_sdxl_with_lora, prompt_from_palette, add_slidesafe_token
     try:
         from sdxl import _set_scheduler as _sdxl_set_scheduler
     except Exception:
@@ -164,8 +164,12 @@ def generate_and_mask(
         )
 
     dev = device or ("cuda" if torch.cuda.is_available() else "cpu")
+
     if prompt is None:
         prompt = prompt_from_palette(palette)
+    else:
+        prompt = add_slidesafe_token(prompt)
+
     print("Prompt:", prompt)
 
     out_dir = Path(out_dir)

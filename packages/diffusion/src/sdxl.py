@@ -43,6 +43,20 @@ PROMPT_PRESETS = {
     ),
 }
 
+SLIDESAFE_TOKEN = "slidesafe"
+
+def add_slidesafe_token(prompt: str) -> str:
+    """
+    Prefix the special 'slidesafe' token if it's not already present.
+    This lets LoRA learn a behavior keyed to this token.
+    """
+    prompt = (prompt or "").strip()
+    if not prompt:
+        return SLIDESAFE_TOKEN
+    if SLIDESAFE_TOKEN in prompt:
+        return prompt
+    return f"{SLIDESAFE_TOKEN} {prompt}"
+
 def _pick_device(device):
     if device is not None:
         return str(device)
@@ -168,4 +182,5 @@ def prompt_from_palette(palette, preset = "academic"):
         f"primary color {primary}, secondary color {secondary}, accent color {accent}, "
         "subtle texture"
     )
-    return f"{base}, {color_str}"
+    raw = f"{base}, {color_str}"
+    return add_slidesafe_token(raw)
