@@ -92,10 +92,16 @@ class JsonlImageDataset(Dataset):
             tensor = self._preprocess(im)
         return {"pixel_values": tensor, "caption": caption}
 
-def _inject_unet_lora(pipe: "StableDiffusionXLPipeline", rank: int = 8) -> int:
+def _inject_unet_lora(pipe: StableDiffusionXLPipeline, rank: int = 8) -> int:
     pipe.unet.requires_grad_(False)
+
     unet_lora_cfg = PeftLoraConfig(
-        target_modules=["to_q", "to_k", "to_v", "to_out.0"]
+        r=rank,
+        lora_alpha=rank,
+        lora_dropout=0.0,
+        target_modules=["to_q", "to_k", "to_v", "to_out.0"],
+        bias="none",
+        task_type="UNET_TUNING"
     )
     pipe.unet.add_adapter(unet_lora_cfg)
     return sum(p.requires_grad for p in pipe.unet.parameters())
@@ -444,7 +450,7 @@ def main(argv=None):
                 opt.zero_grad(set_to_none=True)
                 global_step += 1
 
-                if global_step % 10 == 0 or global_step == cfg.max_train_steps:
+                if global_step % 40 == 0 or global_step == cfg.max_train_steps:
                     print(f"step {global_step}/{cfg.max_train_steps} loss {loss.item():.4f}")
 
                 if global_step % 20 == 0:

@@ -65,6 +65,20 @@ def _load_unet_lora_peft(pipe, lora_dir: Path, rank: int = 8) -> None:
     if unexpected:
         print("[LoRA] unexpected keys:", unexpected)
 
+def _load_lora_into_sdxl(pipe, lora_dir: str, rank: int = 8):
+    lora_path = Path(lora_dir) / "unet_lora_peft.pt"
+    if not lora_path.exists():
+        raise FileNotFoundError(f"No LoRA file found at {lora_path}")
+
+    _inject_unet_lora(pipe, rank=rank)
+
+    state = torch.load(lora_path, map_location="cpu")
+    missing, unexpected = pipe.unet.load_state_dict(state, strict=False)
+
+    print(f"[LoRA] Loaded {len(state)} tensors from {lora_path.name}")
+    print(f"[LoRA] Missing keys: {len(missing)}, Unexpected: {len(unexpected)}")
+    return pipe
+
 def save_np_mask(mask_t, path):
     m = mask_t.squeeze(0).detach().cpu().numpy()
     m8 = (np.clip(m, 0, 1) * 255).astype(np.uint8)
