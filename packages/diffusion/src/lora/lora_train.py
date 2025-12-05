@@ -17,6 +17,7 @@ try:
     from diffusers.utils import logging as dlogging
     from peft import LoraConfig as PeftLoraConfig
     from peft.tuners.lora import LoraLayer
+    from safetensors.torch import save_file
 except Exception as e:
     torch = None
     F = None
@@ -28,6 +29,7 @@ except Exception as e:
     dlogging = None
     PeftLoraConfig = None
     LoraLayer = None
+    save_file = None
 
 from .lora_data import build_manifest, AbstractWithLayoutDataset
 
@@ -209,16 +211,56 @@ def _save_unet_lora_peft(pipe, save_dir: Path) -> Path:
     import torch
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    lora_state = {}
+    lora_state: dict[str, torch.Tensor] = {}
     for name, module in pipe.unet.named_modules():
         if isinstance(module, LoraLayer):
             for k, v in module.state_dict().items():
                 key = f"{name}.{k}"
                 lora_state[key] = v.detach().cpu()
 
-    out_path = save_dir / "unet_lora_peft.pt"
-    torch.save(lora_state, out_path)
-    return out_path
+    pt_path = save_dir / "unet_lora_peft.pt"
+    torch.save(lora_state, pt_path)
+    try:
+        # a) safetensors file
+        st_path = save_dir / "pytorch_lora_weights.safetensors"
+        save_file(lora_state, str(st_path))
+        print(f"[LoRA] Saved safetensors weights to: {st_path}")
+        r = None
+        lora_alpha = None
+        target_modules = ["to_q", "to_k", "to_v", "to_out.0"]
+
+        for module in pipe.unet.modules():
+            if isinstance(module, LoraLayer):
+                r = getattr(module, "r", r)
+                lora_alpha = getattr(module, "lora_alpha", lora_alpha)
+                if r is not None and lora_alpha is not None:
+                    break
+
+        adapter_cfg = {
+            "peft_type": "LORA",
+            "base_model_name_or_path": getattr(pipe, "model_id", None)
+            or getattr(getattr(pipe, "config", None), "_name_or_path", None)
+            or "stabilityai/stable-diffusion-xl-base-1.0",
+            "task_type": "UNET_TUNING",
+            "r": int(r) if r is not None else 8,
+            "lora_alpha": int(lora_alpha) if lora_alpha is not None else (
+                int(r) if r is not None else 8
+            ),
+            "lora_dropout": 0.0,
+            "bias": "none",
+            "target_modules": target_modules,
+            "inference_mode": True,
+        }
+
+        cfg_path = save_dir / "adapter_config.json"
+        with cfg_path.open("w") as f:
+            json.dump(adapter_cfg, f, indent=2)
+        print(f"[LoRA] Saved adapter config to: {cfg_path}")
+
+    except Exception as e:
+        print(f"[LoRA] WARNING: failed to save Diffusers LoRA format: {e}")
+
+    return pt_path
 
 
 def main(argv=None):
