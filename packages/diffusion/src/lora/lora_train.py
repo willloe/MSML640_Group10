@@ -103,10 +103,16 @@ def _inject_unet_lora(pipe: StableDiffusionXLPipeline, rank: int = 8) -> int:
         lora_dropout=0.0,
         target_modules=["to_q", "to_k", "to_v", "to_out.0"],
         bias="none",
-        task_type="UNET_TUNING"
     )
+
     pipe.unet.add_adapter(unet_lora_cfg)
-    return sum(p.requires_grad for p in pipe.unet.parameters())
+
+    trainable = 0
+    for p in pipe.unet.parameters():
+        if p.requires_grad:
+            trainable += p.numel()
+    print(f"Injected UNet LoRA: rank={rank}, trainable params={trainable}")
+    return trainable
 
 def _collect_lora_params(pipe: "StableDiffusionXLPipeline"):
     return [p for p in pipe.unet.parameters() if p.requires_grad]
@@ -241,7 +247,6 @@ def _save_unet_lora_peft(pipe, save_dir: Path) -> Path:
             "base_model_name_or_path": getattr(pipe, "model_id", None)
             or getattr(getattr(pipe, "config", None), "_name_or_path", None)
             or "stabilityai/stable-diffusion-xl-base-1.0",
-            "task_type": "UNET_TUNING",
             "r": int(r) if r is not None else 8,
             "lora_alpha": int(lora_alpha) if lora_alpha is not None else (
                 int(r) if r is not None else 8
