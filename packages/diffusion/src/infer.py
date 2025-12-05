@@ -69,18 +69,25 @@ def _load_unet_lora_peft(pipe, lora_dir: Path, rank: Optional[int] = None) -> No
         print("[LoRA] unexpected keys:", unexpected)
 
 def _detect_lora_rank(lora_dir: Path, fallback: int = 8) -> int:
-    cfg_path = Path(lora_dir) / "adapter_config.json"
+    lora_dir = Path(lora_dir)
+    cfg_path = lora_dir.parent / "lora_config.json"
+
     if cfg_path.exists():
         try:
             with cfg_path.open("r") as f:
                 cfg = json.load(f)
-            r = int(cfg.get("r", fallback))
-            print(f"[LoRA] Detected rank={r} from {cfg_path.name}")
-            return r
+
+            r = cfg.get("rank") or cfg.get("r")
+            if r is not None:
+                r_int = int(r)
+                print(f"[LoRA] Detected rank={r_int} from {cfg_path.name}")
+                return r_int
+            else:
+                print(f"[LoRA] WARNING: lora_config.json found but no 'rank' field, using fallback={fallback}")
         except Exception as e:
-            print(f"[LoRA] WARNING: failed to read adapter_config.json in {lora_dir}: {e}")
+            print(f"[LoRA] WARNING: failed to read lora_config.json in {lora_dir}: {e}")
     else:
-        print(f"[LoRA] adapter_config.json not found in {lora_dir}, using fallback rank={fallback}")
+        print(f"[LoRA] lora_config.json not found in {lora_dir}, using fallback rank={fallback}")
     return fallback
 
 def _load_lora_into_sdxl(pipe, lora_dir: str, rank: Optional[int] = None):
