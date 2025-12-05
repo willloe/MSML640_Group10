@@ -42,14 +42,14 @@ except Exception:
 
 def _inject_unet_lora(pipe, rank: int = 8) -> None:
     pipe.unet.requires_grad_(False)
-    cfg = PeftLoraConfig(
+    unet_lora_cfg = PeftLoraConfig(
         r=rank,
-        lora_alpha=rank * 2,
+        lora_alpha=rank,
         lora_dropout=0.0,
-        bias="none",
         target_modules=["to_q", "to_k", "to_v", "to_out.0"],
+        bias="none",
     )
-    pipe.unet.add_adapter(cfg)
+    pipe.unet.add_adapter(unet_lora_cfg)
 
 
 def _load_unet_lora_peft(pipe, lora_dir: Path, rank: int = 8) -> None:
