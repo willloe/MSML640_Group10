@@ -4,6 +4,7 @@ from pathlib import Path
 import torch
 from generate import create_layout_control_map, visualize_control_map
 from validation import validate_layout, validate_palette
+from sdxl import add_slidesafe_token
 
 IMAGE_PROBABILITY = 0.7
 LOGO_PROBABILITY = 0.4
@@ -278,7 +279,8 @@ def _prompt_for_layout(palette: Dict[str, str]) -> str:
         parts.append(f"accent color {a}")
     if style:
         parts.append(style)
-    return ", ".join(parts)
+    raw = ", ".join(parts)
+    return add_slidesafe_token(raw)
 
 
 def sample_condition_batch(

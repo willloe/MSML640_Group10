@@ -31,7 +31,7 @@ except Exception as e:
     LoraLayer = None
     save_file = None
 
-from .lora_data import build_manifest, AbstractWithLayoutDataset
+from .lora_data import build_manifest, AbstractWithLayoutDataset, _with_slidesafe
 
 @dataclass
 class LoraTrainConfig:
@@ -90,6 +90,7 @@ class JsonlImageDataset(Dataset):
         rec = self.items[idx]
         path = Path(rec["image"])
         caption = rec.get("caption", "")
+        caption = _with_slidesafe(caption)
         with Image.open(path) as im:
             tensor = self._preprocess(im)
         return {"pixel_values": tensor, "caption": caption}
