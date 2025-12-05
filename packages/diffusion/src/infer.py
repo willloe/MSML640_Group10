@@ -3,6 +3,7 @@ from typing import Dict, Optional
 import torch
 from PIL import Image, ImageDraw, ImageFilter, ImageChops
 import numpy as np
+import json
 
 from peft import LoraConfig as PeftLoraConfig
 from peft.tuners.lora import LoraLayer
@@ -51,11 +52,13 @@ def _inject_unet_lora(pipe, rank: int = 8) -> None:
     )
     pipe.unet.add_adapter(unet_lora_cfg)
 
-
-def _load_unet_lora_peft(pipe, lora_dir: Path, rank: int = 8) -> None:
+def _load_unet_lora_peft(pipe, lora_dir: Path, rank: Optional[int] = None) -> None:
     lora_path = Path(lora_dir) / "unet_lora_peft.pt"
     if not lora_path.exists():
         raise FileNotFoundError(f"Expected LoRA file not found: {lora_path}")
+
+    if rank is None:
+        rank = _detect_lora_rank(lora_dir, fallback=8)
 
     state = torch.load(lora_path, map_location="cpu")
     _inject_unet_lora(pipe, rank=rank)
@@ -65,11 +68,28 @@ def _load_unet_lora_peft(pipe, lora_dir: Path, rank: int = 8) -> None:
     if unexpected:
         print("[LoRA] unexpected keys:", unexpected)
 
-def _load_lora_into_sdxl(pipe, lora_dir: str, rank: int = 8):
+def _detect_lora_rank(lora_dir: Path, fallback: int = 8) -> int:
+    cfg_path = Path(lora_dir) / "adapter_config.json"
+    if cfg_path.exists():
+        try:
+            with cfg_path.open("r") as f:
+                cfg = json.load(f)
+            r = int(cfg.get("r", fallback))
+            print(f"[LoRA] Detected rank={r} from {cfg_path.name}")
+            return r
+        except Exception as e:
+            print(f"[LoRA] WARNING: failed to read adapter_config.json in {lora_dir}: {e}")
+    else:
+        print(f"[LoRA] adapter_config.json not found in {lora_dir}, using fallback rank={fallback}")
+    return fallback
+
+def _load_lora_into_sdxl(pipe, lora_dir: str, rank: Optional[int] = None):
     lora_path = Path(lora_dir) / "unet_lora_peft.pt"
     if not lora_path.exists():
         raise FileNotFoundError(f"No LoRA file found at {lora_path}")
 
+    if rank is None:
+        rank = _detect_lora_rank(lora_dir, fallback=8)
     _inject_unet_lora(pipe, rank=rank)
 
     state = torch.load(lora_path, map_location="cpu")
@@ -194,7 +214,7 @@ def generate_and_mask(
             peft_file = lora_dir / "unet_lora_peft.pt"
             if peft_file.exists():
                 print(f"Loading PEFT LoRA for ControlNet from {peft_file}")
-                _load_unet_lora_peft(pipe, lora_dir, rank=8)
+                _load_unet_lora_peft(pipe, lora_dir)
             else:
                 pipe.load_lora_weights(lora_path)
 
@@ -233,7 +253,7 @@ def generate_and_mask(
                 except Exception as e:
                     print(f"Failed to set scheduler on base pipeline: {e}")
 
-            _load_unet_lora_peft(pipe, lora_dir, rank=8)
+            _load_unet_lora_peft(pipe, lora_dir)
         else:
             pipe = load_sdxl_with_lora(
                 model_id=model_id,
