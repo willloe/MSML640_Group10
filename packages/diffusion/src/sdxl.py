@@ -1,5 +1,6 @@
 import os
 import torch
+from style_labeling import STYLE_PRESETS as PROMPT_PRESETS
 
 try:
     from diffusers import DiffusionPipeline
@@ -15,41 +16,9 @@ except Exception:
     DDIMScheduler = None
     DPMSolverMultistepScheduler = None
 
-PROMPT_PRESETS = {
-    "default": (
-        "single minimal professional presentation slide background, "
-        "soft gradients, large clean content area, low contrast, "
-        "no text, no logos, no collage, no grid"
-    ),
-    "academic": (
-        "clean academic presentation slide background, white or light canvas, "
-        "subtle sectioning for title and bullet points, low contrast, "
-        "no photos, no heavy textures, no collage"
-    ),
-    "noisy": (
-        "highly textured abstract geometric background, layered shapes and patterns, "
-        "vibrant but not neon colors, noticeable noise and detail, "
-        "complex visual structure, no text or logos"
-    ),
-    "gradient": (
-        "smooth multi-tone gradient presentation background, soft transitions, "
-        "no hard shapes, no grid, no collage, very low texture, "
-        "large empty regions for overlaying text"
-    ),
-    "photo": (
-        "photographic background with shallow depth of field, "
-        "soft bokeh and light leaks, muted colors, "
-        "subject off-center, large negative space"
-    ),
-}
-
 SLIDESAFE_TOKEN = "slidesafe"
 
 def add_slidesafe_token(prompt: str) -> str:
-    """
-    Prefix the special 'slidesafe' token if it's not already present.
-    This lets LoRA learn a behavior keyed to this token.
-    """
     prompt = (prompt or "").strip()
     if not prompt:
         return SLIDESAFE_TOKEN

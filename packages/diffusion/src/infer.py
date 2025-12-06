@@ -159,8 +159,7 @@ def generate_and_mask(
 
     if negative_prompt is None:
         negative_prompt = (
-            "busy patterns, high-frequency noise, text, letters, numbers, "
-            "logos, charts, diagrams, multiple slides, collage, grid layout"
+            "text, letters, numbers, logos, charts, diagrams, multiple slides, collage, grid layout"
         )
 
     dev = device or ("cuda" if torch.cuda.is_available() else "cpu")
