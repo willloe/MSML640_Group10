@@ -57,46 +57,74 @@ def wcag_pass_rate(
 
     x_samples = np.linspace(0, w - 1, sample_grid, dtype=int)
     y_samples = np.linspace(0, h - 1, sample_grid, dtype=int)
-    sample_points = []
-    contrast_ratios = []
 
+    bg_colors = []
+    coords = []
     for y in y_samples:
         for x in x_samples:
-            bg_color = img_array[y, x]
-            bg_lum = _rgb_to_relative_luminance(bg_color.reshape(1, 3))[0]
+            bg_colors.append(img_array[y, x])
+            coords.append((int(x), int(y)))
 
-            white_contrast = _contrast_ratio(bg_lum, 1.0)
-            black_contrast = _contrast_ratio(bg_lum, 0.0)
-            best_contrast = max(white_contrast, black_contrast)
-            contrast_ratios.append(best_contrast)
-            passes = best_contrast >= threshold
-            sample_points.append({
-                'x': int(x),
-                'y': int(y),
-                'bg_color': bg_color.tolist(),
-                'contrast': float(best_contrast),
-                'passes': passes
-            })
+    bg_colors = np.stack(bg_colors, axis=0)
+    bg_lum = _rgb_to_relative_luminance(bg_colors)
 
+    contrast_white = _contrast_ratio(bg_lum, 1.0)
+    contrast_black = _contrast_ratio(bg_lum, 0.0)
 
-    passes = sum(1 for p in sample_points if p['passes'])
-    total = len(sample_points)
-    pass_rate = passes / total if total > 0 else 0.0
+    passes_white = contrast_white >= threshold
+    passes_black = contrast_black >= threshold
 
-    if return_details:
-        details = {
-            'passes': passes,
-            'total': total,
-            'contrast_ratios': contrast_ratios,
-            'threshold': threshold,
-            'sample_points': sample_points,
-            'mean_contrast': float(np.mean(contrast_ratios)),
-            'min_contrast': float(np.min(contrast_ratios)),
-            'max_contrast': float(np.max(contrast_ratios))
-        }
-        return pass_rate, details
+    pass_rate_white = passes_white.mean() if passes_white.size > 0 else 0.0
+    pass_rate_black = passes_black.mean() if passes_black.size > 0 else 0.0
 
-    return pass_rate
+    if pass_rate_white >= pass_rate_black:
+        chosen_color = "white"
+        chosen_passes = passes_white
+        chosen_contrast = contrast_white
+    else:
+        chosen_color = "black"
+        chosen_passes = passes_black
+        chosen_contrast = contrast_black
+
+    pass_rate = float(chosen_passes.mean()) if chosen_passes.size > 0 else 0.0
+
+    if not return_details:
+        return pass_rate
+
+    sample_points = []
+    for (x, y), bg, c_w, c_b, pw, pb in zip(
+        coords,
+        bg_colors,
+        contrast_white,
+        contrast_black,
+        passes_white,
+        passes_black,
+    ):
+        sample_points.append(
+            {
+                "x": x,
+                "y": y,
+                "bg_color": bg.tolist(),
+                "contrast_white": float(c_w),
+                "contrast_black": float(c_b),
+                "passes_white": bool(pw),
+                "passes_black": bool(pb),
+            }
+        )
+
+    details = {
+        "passes": int(chosen_passes.sum()),
+        "total": int(chosen_passes.size),
+        "threshold": float(threshold),
+        "chosen_text_color": chosen_color,
+        "pass_rate_white": float(pass_rate_white),
+        "pass_rate_black": float(pass_rate_black),
+        "mean_contrast_chosen": float(chosen_contrast.mean()),
+        "min_contrast_chosen": float(chosen_contrast.min()),
+        "max_contrast_chosen": float(chosen_contrast.max()),
+        "sample_points": sample_points,
+    }
+    return pass_rate, details
 
 
 def layout_safety(
