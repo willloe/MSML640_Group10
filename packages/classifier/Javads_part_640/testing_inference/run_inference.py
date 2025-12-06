@@ -300,6 +300,7 @@ def main():
     parser.add_argument('--output', type=str, default='./results')
     parser.add_argument('--conf', type=float, default=0.25)
     parser.add_argument('--text', action='store_true', help='Enable text extraction')
+    parser.add_argument('--bonus-5', action='store_true', help='Save to Bonus_task-5_output folder')  # NEW
     
     args = parser.parse_args()
     
@@ -309,7 +310,16 @@ def main():
         in_dir = script_loc
     else:
         in_dir = Path(args.input)
-    if args.output == './results':
+    
+    # Modify output directory for bonus task
+    if args.bonus_5:
+        # Determine subdirectory based on text flag
+        if args.text or args.pipeline:
+            subdir = 'multimodal'
+        else:
+            subdir = 'vision_only'
+        out_dir = script_loc / 'Bonus_task-5_output' / subdir
+    elif args.output == './results':
         out_dir = script_loc / 'results'
     else:
         out_dir = Path(args.output)
