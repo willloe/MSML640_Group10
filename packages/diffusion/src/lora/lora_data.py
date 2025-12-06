@@ -41,7 +41,10 @@ def _read_sidecar_caption(img: Path) -> Optional[str]:
     return None
 
 def default_style_caption() -> str:
-    base = "professional slide background, soft low-frequency texture, high readability, minimal clutter"
+    base = (
+        "professional slide background, soft gradients, minimal design, "
+        "no text, no letters, no numbers, no logos, no charts, no diagrams"
+    )
     return _with_slidesafe(base)
 
 def build_manifest(images_dir: Path, out_path: Path, fallback_caption: Optional[str] = None) -> List[ImageSample]:
