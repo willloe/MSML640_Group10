@@ -1,0 +1,1177 @@
+[
+  {
+    "image": "image.png",
+    "detections": {
+      "graphs": {
+        "count": 4,
+        "classes": {
+          "pentagon": 1,
+          "area_chart": 1,
+          "bar_chart": 1,
+          "pie_chart": 1
+        }
+      },
+      "images_logos": {
+        "count": 3,
+        "classes": {
+          "logo": 1,
+          "images": 2
+        }
+      }
+    },
+    "text": {
+      "count": 11,
+      "types": {
+        "Obj-text": 11
+      },
+      "elements": [
+        {
+          "text": "100",
+          "conf": 0.9999071549571734,
+          "bbox": [
+            601,
+            293,
+            30,
+            16
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9658835666370571
+        },
+        {
+          "text": "15",
+          "conf": 0.9999993256504904,
+          "bbox": [
+            483,
+            443,
+            22,
+            18
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9760128312473338
+        },
+        {
+          "text": "SO",
+          "conf": 0.5879582286688237,
+          "bbox": [
+            419,
+            469,
+            28,
+            20
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9748649245370181
+        },
+        {
+          "text": "S1",
+          "conf": 0.631789907242965,
+          "bbox": [
+            213,
+            489,
+            26,
+            20
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9779174832592481
+        },
+        {
+          "text": "51.2%",
+          "conf": 0.623191614698345,
+          "bbox": [
+            349,
+            499,
+            66,
+            20
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.7532457314637334
+        },
+        {
+          "text": "10",
+          "conf": 0.9999388033244241,
+          "bbox": [
+            485,
+            501,
+            24,
+            20
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9786519178885895
+        },
+        {
+          "text": "7.29",
+          "conf": 0.9476940659620043,
+          "bbox": [
+            257,
+            509,
+            52,
+            20
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.8933469325661336
+        },
+        {
+          "text": "29.2%",
+          "conf": 0.8192885125175602,
+          "bbox": [
+            254,
+            564,
+            70,
+            24
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.8929211786390385
+        },
+        {
+          "text": "52",
+          "conf": 0.6211121838127942,
+          "bbox": [
+            219,
+            591,
+            28,
+            20
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9828668220728431
+        },
+        {
+          "text": "L2.5%",
+          "conf": 0.9577144879106932,
+          "bbox": [
+            335,
+            585,
+            62,
+            20
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9027631732808057
+        },
+        {
+          "text": "53",
+          "conf": 0.9521182841631292,
+          "bbox": [
+            381,
+            627,
+            28,
+            20
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9837821421974065
+        }
+      ]
+    }
+  },
+  {
+    "image": "multi_000007.png",
+    "detections": {
+      "graphs": {
+        "count": 3,
+        "classes": {
+          "hexagon": 1,
+          "histogram_chart": 1,
+          "circle": 1
+        }
+      },
+      "images_logos": {
+        "count": 3,
+        "classes": {
+          "images": 3
+        }
+      }
+    },
+    "text": {
+      "count": 6,
+      "types": {
+        "Obj-text": 6
+      },
+      "elements": [
+        {
+          "text": "60",
+          "conf": 0.9999868502085879,
+          "bbox": [
+            53,
+            295,
+            22,
+            16
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9789752371006254
+        },
+        {
+          "text": "50",
+          "conf": 0.9990441590355233,
+          "bbox": [
+            53,
+            333,
+            24,
+            20
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9793908426755381
+        },
+        {
+          "text": "40",
+          "conf": 0.9999983141264758,
+          "bbox": [
+            57,
+            373,
+            22,
+            18
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9762517409035415
+        },
+        {
+          "text": "30",
+          "conf": 0.6620019175049667,
+          "bbox": [
+            59,
+            415,
+            22,
+            20
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.98138458726754
+        },
+        {
+          "text": "20",
+          "conf": 0.9999924135756967,
+          "bbox": [
+            61,
+            459,
+            24,
+            16
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9801653400252974
+        },
+        {
+          "text": "10",
+          "conf": 0.9999881146094074,
+          "bbox": [
+            63,
+            497,
+            24,
+            20
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.982914606555964
+        }
+      ]
+    }
+  },
+  {
+    "image": "slide2.png",
+    "detections": {
+      "graphs": {
+        "count": 6,
+        "classes": {
+          "hierarchy_vertical_diagram": 3,
+          "pie_chart": 1,
+          "pentagon": 1,
+          "flowchart": 1
+        }
+      },
+      "images_logos": {
+        "count": 4,
+        "classes": {
+          "images": 4
+        }
+      }
+    },
+    "text": {
+      "count": 47,
+      "types": {
+        "Title": 1,
+        "Obj-text": 39,
+        "Other-text": 7
+      },
+      "elements": [
+        {
+          "text": "Reinforcement Learning in Atari",
+          "conf": 0.9692598159114961,
+          "bbox": [
+            193,
+            5,
+            632,
+            67
+          ],
+          "type": "Title",
+          "type_conf": 0.8547236337617367
+        },
+        {
+          "text": "state",
+          "conf": 0.9999847527499907,
+          "bbox": [
+            405,
+            179,
+            116,
+            44
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.7141967285334271
+        },
+        {
+          "text": "action",
+          "conf": 0.999980143824319,
+          "bbox": [
+            1164,
+            176,
+            144,
+            48
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.4899989366412016
+        },
+        {
+          "text": "St",
+          "conf": 0.9996557618978423,
+          "bbox": [
+            500,
+            254,
+            50,
+            52
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.8739751585821458
+        },
+        {
+          "text": "at",
+          "conf": 0.9999075310666092,
+          "bbox": [
+            1188,
+            254,
+            52,
+            52
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.8579317674812306
+        },
+        {
+          "text": "3=E",
+          "conf": 0.015913361098991403,
+          "bbox": [
+            285,
+            375,
+            74,
+            20
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.768038478747291
+        },
+        {
+          "text": "",
+          "conf": 0.0,
+          "bbox": [
+            365,
+            375,
+            34,
+            18
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.8316950607391853
+        },
+        {
+          "text": "Fne",
+          "conf": 0.0009808131283217038,
+          "bbox": [
+            449,
+            375,
+            70,
+            18
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9091002320521346
+        },
+        {
+          "text": "",
+          "conf": 0.0,
+          "bbox": [
+            529,
+            377,
+            30,
+            16
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9707360573947902
+        },
+        {
+          "text": "F",
+          "conf": 0.18023391904706276,
+          "bbox": [
+            569,
+            377,
+            32,
+            16
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9666341026479696
+        },
+        {
+          "text": "2",
+          "conf": 0.17229581931337634,
+          "bbox": [
+            300,
+            420,
+            28,
+            62
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.8052936140716449
+        },
+        {
+          "text": "2",
+          "conf": 0.13168450541610444,
+          "bbox": [
+            300,
+            478,
+            26,
+            24
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.7624774371111758
+        },
+        {
+          "text": "9",
+          "conf": 0.6314210033272047,
+          "bbox": [
+            300,
+            500,
+            28,
+            42
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.8102412059622506
+        },
+        {
+          "text": "W",
+          "conf": 0.2914098319257761,
+          "bbox": [
+            328,
+            407,
+            214,
+            175
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.795575215272308
+        },
+        {
+          "text": "reward",
+          "conf": 0.8434425632760352,
+          "bbox": [
+            731,
+            469,
+            108,
+            36
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.822284130850252
+        },
+        {
+          "text": "4",
+          "conf": 0.34165650240771583,
+          "bbox": [
+            502,
+            542,
+            28,
+            28
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.954517745832421
+        },
+        {
+          "text": "Wu)",
+          "conf": 0.9970040766402519,
+          "bbox": [
+            1237,
+            677,
+            28,
+            14
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9634841230664548
+        },
+        {
+          "text": "Jerry",
+          "conf": 0.9951855680930618,
+          "bbox": [
+            1205,
+            683,
+            32,
+            14
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9683655419518571
+        },
+        {
+          "text": "the Act;",
+          "conf": 0.8057708693415053,
+          "bbox": [
+            1121,
+            691,
+            48,
+            20
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9205195317474455
+        },
+        {
+          "text": "ubject of",
+          "conf": 0.7831290245381094,
+          "bbox": [
+            831,
+            737,
+            54,
+            20
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9534365361750851
+        },
+        {
+          "text": "Jolo",
+          "conf": 0.05805658877839551,
+          "bbox": [
+            686,
+            752,
+            22,
+            8
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9685537954240053
+        },
+        {
+          "text": "Fjo",
+          "conf": 0.059024568267583025,
+          "bbox": [
+            775,
+            751,
+            30,
+            12
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9748801924126578
+        },
+        {
+          "text": "0f thie",
+          "conf": 0.2287479478106279,
+          "bbox": [
+            627,
+            771,
+            38,
+            18
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9812276352301426
+        },
+        {
+          "text": "Un this",
+          "conf": 0.21255108205511572,
+          "bbox": [
+            479,
+            779,
+            38,
+            18
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9533033111965246
+        },
+        {
+          "text": "Tne",
+          "conf": 0.9832850120853607,
+          "bbox": [
+            403,
+            795,
+            26,
+            14
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9755219974419709
+        },
+        {
+          "text": "AERSIT}",
+          "conf": 0.1882685909292672,
+          "bbox": [
+            34,
+            870,
+            58,
+            24
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.8070417335563674
+        },
+        {
+          "text": "SCIENCE",
+          "conf": 0.9997825929409714,
+          "bbox": [
+            116,
+            884,
+            152,
+            32
+          ],
+          "type": "Other-text",
+          "type_conf": 0.5435260371328976
+        },
+        {
+          "text": "2023, UNIVERSITY OF MARYLAND",
+          "conf": 0.696440061787103,
+          "bbox": [
+            709,
+            907,
+            264,
+            20
+          ],
+          "type": "Other-text",
+          "type_conf": 0.9145203836813012
+        },
+        {
+          "text": "MSML 642",
+          "conf": 0.9999135202497593,
+          "bbox": [
+            1500,
+            898,
+            144,
+            32
+          ],
+          "type": "Other-text",
+          "type_conf": 0.456079248366013
+        },
+        {
+          "text": "ACADEMY",
+          "conf": 0.9963454604332859,
+          "bbox": [
+            116,
+            916,
+            174,
+            32
+          ],
+          "type": "Other-text",
+          "type_conf": 0.7323043117105635
+        },
+        {
+          "text": "5.52 PM",
+          "conf": 0.8234889334409693,
+          "bbox": [
+            1438,
+            934,
+            116,
+            25
+          ],
+          "type": "Other-text",
+          "type_conf": 0.536066547313678
+        },
+        {
+          "text": "91",
+          "conf": 0.9999998314126102,
+          "bbox": [
+            1592,
+            936,
+            34,
+            23
+          ],
+          "type": "Other-text",
+          "type_conf": 0.7891214648510008
+        },
+        {
+          "text": "(Prol",
+          "conf": 0.7100825775638215,
+          "bbox": [
+            1166,
+            682,
+            40,
+            24
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9205919722311484
+        },
+        {
+          "text": "under",
+          "conf": 0.995981559047256,
+          "bbox": [
+            1083,
+            697,
+            40,
+            20
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9215564174326656
+        },
+        {
+          "text": "prolection",
+          "conf": 0.6924598257522351,
+          "bbox": [
+            1023,
+            704,
+            62,
+            21
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9204839857016607
+        },
+        {
+          "text": "performier",
+          "conf": 0.3043376544590558,
+          "bbox": [
+            952,
+            713,
+            64,
+            26
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9694184901934144
+        },
+        {
+          "text": "copyright",
+          "conf": 0.9863899931175238,
+          "bbox": [
+            880,
+            724,
+            63,
+            27
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9717273072156547
+        },
+        {
+          "text": "subject",
+          "conf": 0.9996511500157279,
+          "bbox": [
+            620,
+            754,
+            50,
+            21
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9071050515218747
+        },
+        {
+          "text": "ATARI",
+          "conf": 0.9786135364402295,
+          "bbox": [
+            864,
+            758,
+            62,
+            25
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9732359138244311
+        },
+        {
+          "text": "mnalenhan",
+          "conf": 0.17644624932076425,
+          "bbox": [
+            665,
+            761,
+            52,
+            22
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9797695129193178
+        },
+        {
+          "text": "documeni",
+          "conf": 0.7907073081799108,
+          "bbox": [
+            515,
+            769,
+            60,
+            22
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9546110574231734
+        },
+        {
+          "text": "communication",
+          "conf": 0.7441245839877109,
+          "bbox": [
+            534,
+            775,
+            95,
+            29
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.8379968882994554
+        },
+        {
+          "text": "material",
+          "conf": 0.9860007694988183,
+          "bbox": [
+            425,
+            782,
+            55,
+            23
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9217766093505753
+        },
+        {
+          "text": "copying",
+          "conf": 0.9990808972770922,
+          "bbox": [
+            470,
+            794,
+            52,
+            21
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.941545940034919
+        },
+        {
+          "text": "further",
+          "conf": 0.7043632256863288,
+          "bbox": [
+            429,
+            801,
+            44,
+            19
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9449658210637046
+        },
+        {
+          "text": "Any",
+          "conf": 0.9997181648358267,
+          "bbox": [
+            403,
+            808,
+            28,
+            16
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9563245479093239
+        },
+        {
+          "text": "AND",
+          "conf": 0.9009341207904286,
+          "bbox": [
+            72,
+            925,
+            35,
+            33
+          ],
+          "type": "Other-text",
+          "type_conf": 0.907009203396657
+        }
+      ]
+    }
+  },
+  {
+    "image": "slide_test_00200.png",
+    "detections": {
+      "graphs": {
+        "count": 1,
+        "classes": {
+          "hierarchy_vertical_diagram": 1
+        }
+      },
+      "images_logos": {
+        "count": 1,
+        "classes": {
+          "logo": 1
+        }
+      }
+    },
+    "text": {
+      "count": 8,
+      "types": {
+        "Title": 1,
+        "Obj-text": 3,
+        "Page-text": 3,
+        "Other-text": 1
+      },
+      "elements": [
+        {
+          "text": "Quarterly Business Review",
+          "conf": 0.6779422971301796,
+          "bbox": [
+            123,
+            23,
+            492,
+            42
+          ],
+          "type": "Title",
+          "type_conf": 0.9410739108154873
+        },
+        {
+          "text": "TNRR",
+          "conf": 0.030861349776387215,
+          "bbox": [
+            339,
+            241,
+            139,
+            43
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.8239370894985543
+        },
+        {
+          "text": "Milano",
+          "conf": 0.8106005788765709,
+          "bbox": [
+            310,
+            302,
+            274,
+            80
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.4556665411445339
+        },
+        {
+          "text": "Expanded to 12 new markets",
+          "conf": 0.7971396926193753,
+          "bbox": [
+            50,
+            552,
+            300,
+            28
+          ],
+          "type": "Page-text",
+          "type_conf": 0.47582725908053747
+        },
+        {
+          "text": "Increased revenue by 15%",
+          "conf": 0.7038186170437565,
+          "bbox": [
+            50,
+            578,
+            274,
+            26
+          ],
+          "type": "Page-text",
+          "type_conf": 0.3756282170823257
+        },
+        {
+          "text": "Team headcount grew 20%",
+          "conf": 0.9841868569057223,
+          "bbox": [
+            50,
+            602,
+            280,
+            26
+          ],
+          "type": "Page-text",
+          "type_conf": 0.34774376879072527
+        },
+        {
+          "text": "Confidential",
+          "conf": 0.8916468474800581,
+          "bbox": [
+            1129,
+            691,
+            70,
+            14
+          ],
+          "type": "Other-text",
+          "type_conf": 0.7340500680567521
+        },
+        {
+          "text": "FY",
+          "conf": 0.08701294680336527,
+          "bbox": [
+            470,
+            245,
+            74,
+            39
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9315159030391249
+        }
+      ]
+    }
+  },
+  {
+    "image": "slide_test_00351.png",
+    "detections": {
+      "graphs": {
+        "count": 3,
+        "classes": {
+          "table": 2,
+          "hierarchy_vertical_diagram": 1
+        }
+      },
+      "images_logos": {
+        "count": 2,
+        "classes": {
+          "images": 2
+        }
+      }
+    },
+    "text": {
+      "count": 5,
+      "types": {
+        "Obj-text": 4,
+        "Page-text": 1
+      },
+      "elements": [
+        {
+          "text": "\"Arerican\"t",
+          "conf": 0.18945280591125313,
+          "bbox": [
+            364,
+            179,
+            163,
+            62
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.834515772883381
+        },
+        {
+          "text": "Turbina de aviao suga @",
+          "conf": 0.7126099740671386,
+          "bbox": [
+            154,
+            386,
+            288,
+            30
+          ],
+          "type": "Page-text",
+          "type_conf": 0.5468252609567718
+        },
+        {
+          "text": "COMPRESSOR",
+          "conf": 0.8193925436776621,
+          "bbox": [
+            1182,
+            426,
+            68,
+            8
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.6697780603247887
+        },
+        {
+          "text": "NOZZLE",
+          "conf": 0.4165190366480011,
+          "bbox": [
+            1218,
+            580,
+            36,
+            8
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9164349606479992
+        },
+        {
+          "text": "~#",
+          "conf": 0.04679837714019541,
+          "bbox": [
+            450,
+            579,
+            57,
+            31
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.9727276769959388
+        }
+      ]
+    }
+  },
+  {
+    "image": "slide_test_00374.png",
+    "detections": {
+      "graphs": {
+        "count": 1,
+        "classes": {
+          "pie_chart": 1
+        }
+      },
+      "images_logos": {
+        "count": 2,
+        "classes": {
+          "logo": 2
+        }
+      }
+    },
+    "text": {
+      "count": 7,
+      "types": {
+        "Title": 1,
+        "Obj-text": 6
+      },
+      "elements": [
+        {
+          "text": "Customer Insigl",
+          "conf": 0.999233926105984,
+          "bbox": [
+            87,
+            15,
+            292,
+            44
+          ],
+          "type": "Title",
+          "type_conf": 0.9134129222158651
+        },
+        {
+          "text": "Launched 3 major features",
+          "conf": 0.9984941676538197,
+          "bbox": [
+            934,
+            154,
+            264,
+            26
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.3841273058259926
+        },
+        {
+          "text": "Increased revenue by 15%",
+          "conf": 0.8774110157179011,
+          "bbox": [
+            932,
+            184,
+            262,
+            26
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.35621061805389614
+        },
+        {
+          "text": "Team headcount grew 20%",
+          "conf": 0.984082431907206,
+          "bbox": [
+            934,
+            214,
+            264,
+            26
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.3263614401333241
+        },
+        {
+          "text": "G R 0 U P E",
+          "conf": 0.8893587371849818,
+          "bbox": [
+            59,
+            345,
+            92,
+            20
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.7647059983578512
+        },
+        {
+          "text": "@sino",
+          "conf": 0.9035417675195804,
+          "bbox": [
+            22,
+            360,
+            150,
+            50
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.6418082067279266
+        },
+        {
+          "text": "Confidential",
+          "conf": 0.969170069959192,
+          "bbox": [
+            589,
+            691,
+            82,
+            16
+          ],
+          "type": "Obj-text",
+          "type_conf": 0.5294377161188896
+        }
+      ]
+    }
+  }
+]

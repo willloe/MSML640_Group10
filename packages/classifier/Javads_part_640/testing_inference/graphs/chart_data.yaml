@@ -1,0 +1,31 @@
+path: dataset
+
+train: images/train
+val: images/val
+
+nc: 23
+
+names:
+  0: column_chart
+  1: line_chart
+  2: pie_chart
+  3: bar_chart
+  4: area_chart
+  5: scatter_chart
+  6: histogram_chart
+  7: waterfall_chart
+  8: flowchart
+  9: hierarchy_vertical_diagram
+  10: hierarchy_horizontal_diagram
+  11: table
+  12: circle
+  13: oval
+  14: triangle_right
+  15: triangle_isosceles
+  16: diamond
+  17: parallelogram
+  18: trapezoid
+  19: pentagon
+  20: hexagon
+  21: octagon
+  22: rectangle
