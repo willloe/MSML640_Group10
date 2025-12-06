@@ -1,6 +1,6 @@
 import numpy as np
 from PIL import Image
-from typing import Union, Tuple, List, Dict, Optional
+from typing import Any, Union, Tuple, List, Dict, Optional
 from pathlib import Path
 
 
@@ -218,6 +218,54 @@ def _layout_masks_from_elements(
     background_mask = ~content_mask
     return content_mask, background_mask
 
+def _safe_zone_to_mask(
+    safe_zone: Any,
+    size: Tuple[int, int],
+) -> Optional[np.ndarray]:
+    import torch
+
+    W, H = size
+
+    if isinstance(safe_zone, torch.Tensor):
+        sz = safe_zone.detach().cpu().float()
+        if sz.ndim == 3:
+            sz = sz.mean(0)
+        elif sz.ndim != 2:
+            return None
+
+        if sz.shape != (H, W):
+            sz = torch.nn.functional.interpolate(
+                sz.unsqueeze(0).unsqueeze(0),
+                size=(H, W),
+                mode="bilinear",
+                align_corners=False,
+            )[0, 0]
+
+        sz = sz.numpy()
+        mask = sz > 0.0
+        return mask.astype(bool)
+
+    if isinstance(safe_zone, np.ndarray):
+        sz = safe_zone.astype(np.float32)
+        if sz.ndim == 3:
+            sz = sz.mean(0)
+        elif sz.ndim != 2:
+            return None
+
+        if sz.shape != (H, W):
+            from PIL import Image as _PILImage
+
+            sz_img = _PILImage.fromarray(sz)
+            sz_img = sz_img.resize((W, H), _PILImage.NEAREST)
+            sz = np.array(sz_img, dtype=np.float32)
+
+        mask = sz > 0.0
+        return mask.astype(bool)
+
+    if isinstance(safe_zone, dict) and "mask" in safe_zone:
+        return _safe_zone_to_mask(safe_zone["mask"], size)
+
+    return None
 
 def layout_uniformity_score(
     img: Image.Image,
@@ -225,7 +273,14 @@ def layout_uniformity_score(
     safe_zone: Optional[Dict] = None,
 ) -> Dict[str, float]:
     gray = np.array(img.convert("L"), dtype=np.float32) / 255.0
-    content_mask, background_mask = _layout_masks_from_elements(img, layout)
+    content_mask = None
+    if safe_zone is not None:
+        content_mask = _safe_zone_to_mask(safe_zone, img.size)
+
+    if content_mask is None:
+        content_mask, background_mask = _layout_masks_from_elements(img, layout)
+    else:
+        background_mask = ~content_mask
 
     safe_pixels = gray[content_mask]
     bg_pixels = gray[background_mask]
@@ -243,13 +298,16 @@ def layout_uniformity_score(
     eps = 1e-6
     if np.isfinite(safe_std) and safe_std > 0 and np.isfinite(bg_std):
         uniformity = float(bg_std / (safe_std + eps))
+        uniformity_norm = float(bg_std / (bg_std + safe_std + eps))
     else:
         uniformity = float("nan")
+        uniformity_norm = float("nan")
 
     return {
         "safe_std": safe_std,
         "bg_std": bg_std,
         "uniformity": uniformity,
+        "uniformity_norm": uniformity_norm,
     }
 
 if __name__ == "__main__":
