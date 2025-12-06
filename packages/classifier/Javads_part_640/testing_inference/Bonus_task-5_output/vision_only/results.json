@@ -1,0 +1,114 @@
+[
+  {
+    "image": "image.png",
+    "detections": {
+      "graphs": {
+        "count": 4,
+        "classes": {
+          "pentagon": 1,
+          "area_chart": 1,
+          "bar_chart": 1,
+          "pie_chart": 1
+        }
+      },
+      "images_logos": {
+        "count": 3,
+        "classes": {
+          "logo": 1,
+          "images": 2
+        }
+      }
+    }
+  },
+  {
+    "image": "multi_000007.png",
+    "detections": {
+      "graphs": {
+        "count": 3,
+        "classes": {
+          "hexagon": 1,
+          "histogram_chart": 1,
+          "circle": 1
+        }
+      },
+      "images_logos": {
+        "count": 3,
+        "classes": {
+          "images": 3
+        }
+      }
+    }
+  },
+  {
+    "image": "slide2.png",
+    "detections": {
+      "graphs": {
+        "count": 6,
+        "classes": {
+          "hierarchy_vertical_diagram": 3,
+          "pie_chart": 1,
+          "pentagon": 1,
+          "flowchart": 1
+        }
+      },
+      "images_logos": {
+        "count": 4,
+        "classes": {
+          "images": 4
+        }
+      }
+    }
+  },
+  {
+    "image": "slide_test_00200.png",
+    "detections": {
+      "graphs": {
+        "count": 1,
+        "classes": {
+          "hierarchy_vertical_diagram": 1
+        }
+      },
+      "images_logos": {
+        "count": 1,
+        "classes": {
+          "logo": 1
+        }
+      }
+    }
+  },
+  {
+    "image": "slide_test_00351.png",
+    "detections": {
+      "graphs": {
+        "count": 3,
+        "classes": {
+          "table": 2,
+          "hierarchy_vertical_diagram": 1
+        }
+      },
+      "images_logos": {
+        "count": 2,
+        "classes": {
+          "images": 2
+        }
+      }
+    }
+  },
+  {
+    "image": "slide_test_00374.png",
+    "detections": {
+      "graphs": {
+        "count": 1,
+        "classes": {
+          "pie_chart": 1
+        }
+      },
+      "images_logos": {
+        "count": 2,
+        "classes": {
+          "logo": 2
+        }
+      }
+    }
+  }
+]
