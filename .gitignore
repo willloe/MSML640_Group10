@@ -14,6 +14,7 @@ packages/classifier/images/SlideVQA/by_class
 packages/classifier/text/output
 packages/classifier/text/sample_data
 packages/classifier/text/temp_slidevqa
+packages/classifier/text/trained_models/*.pkl
 
 # Misc
 .DS_Store
