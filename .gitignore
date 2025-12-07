@@ -15,6 +15,11 @@ packages/classifier/Javads_part_640/diagram_node_yolo/SlideComponents.v2i.yolov8
 packages/classifier/Javads_part_640/ai2d
 packages/classifier/Javads_part_640/dataset_logos_images/
 packages/classifier/Javads_part_640/dataset_diagrams_ai2d
+packages/classifier/text/output
+packages/classifier/text/sample_data
+packages/classifier/text/temp_slidevqa
+packages/classifier/text/trained_models/*.pkl
+packages/classifier/text/training_data/
 
 # Misc
 .DS_Store
