@@ -1,9 +1,10 @@
 import random
-from typing import Dict, Tuple, List
+from typing import Dict, Tuple, List, Sequence
 from pathlib import Path
 import torch
 from generate import create_layout_control_map, visualize_control_map
 from validation import validate_layout, validate_palette
+from sdxl import add_slidesafe_token
 
 IMAGE_PROBABILITY = 0.7
 LOGO_PROBABILITY = 0.4
@@ -278,13 +279,15 @@ def _prompt_for_layout(palette: Dict[str, str]) -> str:
         parts.append(f"accent color {a}")
     if style:
         parts.append(style)
-    return ", ".join(parts)
+    raw = ", ".join(parts)
+    return add_slidesafe_token(raw)
 
 
 def sample_condition_batch(
     n: int,
     canvas_size: Tuple[int, int] = (1024, 768),
     seed: int | None = None,
+    recipe: str | None = None,
 ):
     if seed is not None:
         random.seed(int(seed))
@@ -297,7 +300,7 @@ def sample_condition_batch(
         if not ok_p:
             raise ValueError(f"Generated palette failed schema: {errs_p}")
 
-        layout = random_layout(W, H, n_boxes=3 + random.randint(0, 2))
+        layout = random_layout(W, H, n_boxes=3 + random.randint(0, 2), recipe=recipe)
         ok_l, errs_l = validate_layout(layout)
         if not ok_l:
             raise ValueError(f"Generated layout failed schema: {errs_l}")
@@ -322,3 +325,59 @@ def save_control_visuals(samples: List[Dict], out_dir: str):
     for i, s in enumerate(samples):
         vis = visualize_control_map(s["control_map"])
         vis.save(str(out_path / f"control_map_{i:02d}.png"))
+
+def _smooth_regions_inplace(
+    img: torch.Tensor,
+    boxes: Sequence[Tuple[int, int, int, int]],
+    alpha: float = 0.5,
+) -> None:
+    if img.ndim != 3:
+        raise ValueError(f"Expected img shape (C,H,W), got {img.shape}")
+
+    C, H, W = img.shape
+    for (x, y, w, h) in boxes:
+        x0 = max(0, min(int(x), W - 1))
+        y0 = max(0, min(int(y), H - 1))
+        x1 = max(0, min(x0 + max(0, int(w)), W))
+        y1 = max(0, min(y0 + max(0, int(h)), H))
+        if x1 <= x0 or y1 <= y0:
+            continue
+
+        patch = img[:, y0:y1, x0:x1]
+        if patch.numel() == 0:
+            continue
+
+        mean_color = patch.mean(dim=(1, 2), keepdim=True)
+        img[:, y0:y1, x0:x1] = alpha * patch + (1.0 - alpha) * mean_color
+
+
+def smooth_layout_regions(
+    pixel_values: torch.Tensor,
+    layouts: List[Dict],
+    classes: Tuple[str, ...] = ("title", "body"),
+    alpha: float = 0.6,
+) -> torch.Tensor:
+    if pixel_values.ndim != 4:
+        raise ValueError(f"Expected (B,C,H,W), got {pixel_values.shape}")
+    B, C, H, W = pixel_values.shape
+    if len(layouts) != B:
+        raise ValueError(f"layouts len {len(layouts)} != batch size {B}")
+
+    for i in range(B):
+        layout = layouts[i] or {}
+        elements = layout.get("elements", [])
+        boxes = []
+        for el in elements:
+            if el.get("class") not in classes:
+                continue
+            bbox = el.get("bbox_xywh")
+            if not bbox or len(bbox) != 4:
+                continue
+            boxes.append(tuple(bbox))
+
+        if not boxes:
+            continue
+
+        _smooth_regions_inplace(pixel_values[i], boxes, alpha=alpha)
+
+    return pixel_values

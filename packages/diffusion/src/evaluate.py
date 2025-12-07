@@ -1,6 +1,6 @@
 import numpy as np
 from PIL import Image
-from typing import Union, Tuple, List, Dict
+from typing import Any, Union, Tuple, List, Dict, Optional
 from pathlib import Path
 
 
@@ -57,47 +57,117 @@ def wcag_pass_rate(
 
     x_samples = np.linspace(0, w - 1, sample_grid, dtype=int)
     y_samples = np.linspace(0, h - 1, sample_grid, dtype=int)
-    sample_points = []
-    contrast_ratios = []
 
+    bg_colors = []
+    coords = []
     for y in y_samples:
         for x in x_samples:
-            bg_color = img_array[y, x]
-            bg_lum = _rgb_to_relative_luminance(bg_color.reshape(1, 3))[0]
+            bg_colors.append(img_array[y, x])
+            coords.append((int(x), int(y)))
 
-            white_contrast = _contrast_ratio(bg_lum, 1.0)
-            black_contrast = _contrast_ratio(bg_lum, 0.0)
-            best_contrast = max(white_contrast, black_contrast)
-            contrast_ratios.append(best_contrast)
-            passes = best_contrast >= threshold
-            sample_points.append({
-                'x': int(x),
-                'y': int(y),
-                'bg_color': bg_color.tolist(),
-                'contrast': float(best_contrast),
-                'passes': passes
-            })
+    bg_colors = np.stack(bg_colors, axis=0)
+    bg_lum = _rgb_to_relative_luminance(bg_colors)
 
+    contrast_white = _contrast_ratio(bg_lum, 1.0)
+    contrast_black = _contrast_ratio(bg_lum, 0.0)
 
-    passes = sum(1 for p in sample_points if p['passes'])
-    total = len(sample_points)
-    pass_rate = passes / total if total > 0 else 0.0
+    passes_white = contrast_white >= threshold
+    passes_black = contrast_black >= threshold
 
-    if return_details:
-        details = {
-            'passes': passes,
-            'total': total,
-            'contrast_ratios': contrast_ratios,
-            'threshold': threshold,
-            'sample_points': sample_points,
-            'mean_contrast': float(np.mean(contrast_ratios)),
-            'min_contrast': float(np.min(contrast_ratios)),
-            'max_contrast': float(np.max(contrast_ratios))
-        }
-        return pass_rate, details
+    pass_rate_white = passes_white.mean() if passes_white.size > 0 else 0.0
+    pass_rate_black = passes_black.mean() if passes_black.size > 0 else 0.0
 
-    return pass_rate
+    if pass_rate_white >= pass_rate_black:
+        chosen_color = "white"
+        chosen_passes = passes_white
+        chosen_contrast = contrast_white
+    else:
+        chosen_color = "black"
+        chosen_passes = passes_black
+        chosen_contrast = contrast_black
 
+    pass_rate = float(chosen_passes.mean()) if chosen_passes.size > 0 else 0.0
+
+    if not return_details:
+        return pass_rate
+
+    sample_points = []
+    for (x, y), bg, c_w, c_b, pw, pb in zip(
+        coords,
+        bg_colors,
+        contrast_white,
+        contrast_black,
+        passes_white,
+        passes_black,
+    ):
+        sample_points.append(
+            {
+                "x": x,
+                "y": y,
+                "bg_color": bg.tolist(),
+                "contrast_white": float(c_w),
+                "contrast_black": float(c_b),
+                "passes_white": bool(pw),
+                "passes_black": bool(pb),
+            }
+        )
+
+    details = {
+        "passes": int(chosen_passes.sum()),
+        "total": int(chosen_passes.size),
+        "threshold": float(threshold),
+        "chosen_text_color": chosen_color,
+        "pass_rate_white": float(pass_rate_white),
+        "pass_rate_black": float(pass_rate_black),
+        "mean_contrast_chosen": float(chosen_contrast.mean()),
+        "min_contrast_chosen": float(chosen_contrast.min()),
+        "max_contrast_chosen": float(chosen_contrast.max()),
+        "sample_points": sample_points,
+    }
+    return pass_rate, details
+
+def wcag_pass_rate_safe_zone(
+    img: Image.Image,
+    safe_zone: Any,
+    text_size: str = "normal",
+    sample_grid: int = 10,
+) -> float:
+    rgb = np.array(img.convert("RGB"), dtype=np.uint8)
+    h, w = rgb.shape[:2]
+
+    mask = _safe_zone_to_mask(safe_zone, (w, h))
+    if mask is None:
+        return wcag_pass_rate(img, text_size=text_size, sample_grid=sample_grid)
+
+    ys, xs = np.where(mask)
+    if ys.size == 0:
+        return wcag_pass_rate(img, text_size=text_size, sample_grid=sample_grid)
+
+    n_samples = min(sample_grid * sample_grid, ys.size)
+    idx = np.random.choice(ys.size, size=n_samples, replace=False)
+    ys_sample = ys[idx]
+    xs_sample = xs[idx]
+
+    bg_colors = rgb[ys_sample, xs_sample]
+    bg_lum = _rgb_to_relative_luminance(bg_colors)
+
+    threshold = 4.5 if text_size == "normal" else 3.0
+
+    contrast_white = _contrast_ratio(bg_lum, 1.0)
+    contrast_black = _contrast_ratio(bg_lum, 0.0)
+
+    passes_white = contrast_white >= threshold
+    passes_black = contrast_black >= threshold
+
+    pass_rate_white = passes_white.mean() if passes_white.size > 0 else 0.0
+    pass_rate_black = passes_black.mean() if passes_black.size > 0 else 0.0
+
+    if pass_rate_white >= pass_rate_black:
+        chosen_passes = passes_white
+    else:
+        chosen_passes = passes_black
+
+    return float(chosen_passes.mean()) if chosen_passes.size > 0 else 0.0
 
 def layout_safety(
     control_map: np.ndarray,
@@ -167,6 +237,120 @@ def layout_safety(
         'total_pixels': int(total_pixels)
     }
 
+def _layout_masks_from_elements(
+    img: Image.Image,
+    layout: Dict,
+) -> tuple[np.ndarray, np.ndarray]:
+    w, h = img.size
+    content_mask = np.zeros((h, w), dtype=bool)
+
+    for el in layout.get("elements", []):
+        bbox = el.get("bbox_xywh")
+        if not bbox or len(bbox) != 4:
+            continue
+        x, y, bw, bh = bbox
+        x0 = max(int(round(x)), 0)
+        y0 = max(int(round(y)), 0)
+        x1 = min(int(round(x + bw)), w)
+        y1 = min(int(round(y + bh)), h)
+        if x1 <= x0 or y1 <= y0:
+            continue
+        content_mask[y0:y1, x0:x1] = True
+
+    background_mask = ~content_mask
+    return content_mask, background_mask
+
+def _safe_zone_to_mask(
+    safe_zone: Any,
+    size: Tuple[int, int],
+) -> Optional[np.ndarray]:
+    import torch
+
+    W, H = size
+
+    if isinstance(safe_zone, torch.Tensor):
+        sz = safe_zone.detach().cpu().float()
+        if sz.ndim == 3:
+            sz = sz.mean(0)
+        elif sz.ndim != 2:
+            return None
+
+        if sz.shape != (H, W):
+            sz = torch.nn.functional.interpolate(
+                sz.unsqueeze(0).unsqueeze(0),
+                size=(H, W),
+                mode="bilinear",
+                align_corners=False,
+            )[0, 0]
+
+        sz = sz.numpy()
+        mask = sz > 0.0
+        return mask.astype(bool)
+
+    if isinstance(safe_zone, np.ndarray):
+        sz = safe_zone.astype(np.float32)
+        if sz.ndim == 3:
+            sz = sz.mean(0)
+        elif sz.ndim != 2:
+            return None
+
+        if sz.shape != (H, W):
+            from PIL import Image as _PILImage
+
+            sz_img = _PILImage.fromarray(sz)
+            sz_img = sz_img.resize((W, H), _PILImage.NEAREST)
+            sz = np.array(sz_img, dtype=np.float32)
+
+        mask = sz > 0.0
+        return mask.astype(bool)
+
+    if isinstance(safe_zone, dict) and "mask" in safe_zone:
+        return _safe_zone_to_mask(safe_zone["mask"], size)
+
+    return None
+
+def layout_uniformity_score(
+    img: Image.Image,
+    layout: Dict,
+    safe_zone: Optional[Dict] = None,
+) -> Dict[str, float]:
+    gray = np.array(img.convert("L"), dtype=np.float32) / 255.0
+    content_mask = None
+    if safe_zone is not None:
+        content_mask = _safe_zone_to_mask(safe_zone, img.size)
+
+    if content_mask is None:
+        content_mask, background_mask = _layout_masks_from_elements(img, layout)
+    else:
+        background_mask = ~content_mask
+
+    safe_pixels = gray[content_mask]
+    bg_pixels = gray[background_mask]
+
+    if safe_pixels.size == 0:
+        safe_std = float("nan")
+    else:
+        safe_std = float(safe_pixels.std())
+
+    if bg_pixels.size == 0:
+        bg_std = float("nan")
+    else:
+        bg_std = float(bg_pixels.std())
+
+    eps = 1e-6
+    if np.isfinite(safe_std) and safe_std > 0 and np.isfinite(bg_std):
+        uniformity = float(bg_std / (safe_std + eps))
+        uniformity_norm = float(bg_std / (bg_std + safe_std + eps))
+    else:
+        uniformity = float("nan")
+        uniformity_norm = float("nan")
+
+    return {
+        "safe_std": safe_std,
+        "bg_std": bg_std,
+        "uniformity": uniformity,
+        "uniformity_norm": uniformity_norm,
+    }
 
 if __name__ == "__main__":
 

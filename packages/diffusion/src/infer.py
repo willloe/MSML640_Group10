@@ -1,17 +1,29 @@
 from pathlib import Path
 from typing import Dict, Optional
 import torch
+from PIL import Image, ImageDraw, ImageFilter, ImageChops
+import numpy as np
+import json
 
 from peft import LoraConfig as PeftLoraConfig
 from peft.tuners.lora import LoraLayer
 try:
-    from sdxl import load_sdxl_with_lora, prompt_from_palette
+    from sdxl import load_sdxl_with_lora, prompt_from_palette, add_slidesafe_token, _set_scheduler as _sdxl_set_scheduler
 except Exception:
     import sys
     ROOT = Path(__file__).resolve().parents[2]
     if str(ROOT) not in sys.path:
         sys.path.append(str(ROOT))
-    from sdxl import load_sdxl_with_lora, prompt_from_palette
+    from sdxl import load_sdxl_with_lora, prompt_from_palette, add_slidesafe_token
+    try:
+        from sdxl import _set_scheduler as _sdxl_set_scheduler
+    except Exception:
+        _sdxl_set_scheduler = None
+
+try:
+    from control import control_image_from_map
+except Exception:
+    control_image_from_map = None
 
 try:
     from generate import apply_safe_zone_mask
@@ -31,20 +43,22 @@ except Exception:
 
 def _inject_unet_lora(pipe, rank: int = 8) -> None:
     pipe.unet.requires_grad_(False)
-    cfg = PeftLoraConfig(
+    unet_lora_cfg = PeftLoraConfig(
         r=rank,
-        lora_alpha=rank * 2,
+        lora_alpha=rank,
         lora_dropout=0.0,
-        bias="none",
         target_modules=["to_q", "to_k", "to_v", "to_out.0"],
+        bias="none",
     )
-    pipe.unet.add_adapter(cfg)
+    pipe.unet.add_adapter(unet_lora_cfg)
 
-
-def _load_unet_lora_peft(pipe, lora_dir: Path, rank: int = 8) -> None:
+def _load_unet_lora_peft(pipe, lora_dir: Path, rank: Optional[int] = None) -> None:
     lora_path = Path(lora_dir) / "unet_lora_peft.pt"
     if not lora_path.exists():
         raise FileNotFoundError(f"Expected LoRA file not found: {lora_path}")
+
+    if rank is None:
+        rank = _detect_lora_rank(lora_dir, fallback=8)
 
     state = torch.load(lora_path, map_location="cpu")
     _inject_unet_lora(pipe, rank=rank)
@@ -53,6 +67,44 @@ def _load_unet_lora_peft(pipe, lora_dir: Path, rank: int = 8) -> None:
         print("[LoRA] missing keys (subset):", [k for k in missing if "lora" in k][:8])
     if unexpected:
         print("[LoRA] unexpected keys:", unexpected)
+
+def _detect_lora_rank(lora_dir: Path, fallback: int = 8) -> int:
+    lora_dir = Path(lora_dir)
+    cfg_path = lora_dir.parent / "lora_config.json"
+
+    if cfg_path.exists():
+        try:
+            with cfg_path.open("r") as f:
+                cfg = json.load(f)
+
+            r = cfg.get("rank") or cfg.get("r")
+            if r is not None:
+                r_int = int(r)
+                print(f"[LoRA] Detected rank={r_int} from {cfg_path.name}")
+                return r_int
+            else:
+                print(f"[LoRA] WARNING: lora_config.json found but no 'rank' field, using fallback={fallback}")
+        except Exception as e:
+            print(f"[LoRA] WARNING: failed to read lora_config.json in {lora_dir}: {e}")
+    else:
+        print(f"[LoRA] lora_config.json not found in {lora_dir}, using fallback rank={fallback}")
+    return fallback
+
+def _load_lora_into_sdxl(pipe, lora_dir: str, rank: Optional[int] = None):
+    lora_path = Path(lora_dir) / "unet_lora_peft.pt"
+    if not lora_path.exists():
+        raise FileNotFoundError(f"No LoRA file found at {lora_path}")
+
+    if rank is None:
+        rank = _detect_lora_rank(lora_dir, fallback=8)
+    _inject_unet_lora(pipe, rank=rank)
+
+    state = torch.load(lora_path, map_location="cpu")
+    missing, unexpected = pipe.unet.load_state_dict(state, strict=False)
+
+    print(f"[LoRA] Loaded {len(state)} tensors from {lora_path.name}")
+    print(f"[LoRA] Missing keys: {len(missing)}, Unexpected: {len(unexpected)}")
+    return pipe
 
 def save_np_mask(mask_t, path):
     m = mask_t.squeeze(0).detach().cpu().numpy()
@@ -89,7 +141,8 @@ def generate_and_mask(
     control_strength: float = 0.8,
     control_from: str = "element",  # "element" | "safe" | "edge"
     scheduler: Optional[str] = None,
-    debug: bool = True,
+    apply_safe_mask: bool = False,
+    prompt: Optional[str] = None,
     **kwargs,
 ) -> str:
     if "num_inference_steps" in kwargs and kwargs["num_inference_steps"] is not None:
@@ -104,8 +157,19 @@ def generate_and_mask(
     if kwargs:
         print(f"generate_and_mask: Ignoring unexpected kwargs: {list(kwargs.keys())}")
 
+    if negative_prompt is None:
+        negative_prompt = (
+            "text, letters, numbers, logos, charts, diagrams, multiple slides, collage, grid layout"
+        )
+
     dev = device or ("cuda" if torch.cuda.is_available() else "cpu")
-    prompt = prompt_from_palette(palette)
+
+    if prompt is None:
+        prompt = prompt_from_palette(palette)
+    else:
+        prompt = add_slidesafe_token(prompt)
+
+    print("Prompt:", prompt)
 
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -119,9 +183,8 @@ def generate_and_mask(
 
     generator = None
     if seed is not None:
-        generator = torch.Generator(device="cuda").manual_seed(int(seed))
+        generator = torch.Generator(device=dev).manual_seed(int(seed))
 
-    stem = Path(out_name).stem
     img: Image.Image
     if use_controlnet:
         if StableDiffusionXLControlNetPipeline is None or ControlNetModel is None:
@@ -134,6 +197,9 @@ def generate_and_mask(
             controlnet_model_id = "diffusers/controlnet-canny-sdxl-1.0"
 
         print(f"Using ControlNet: True ({controlnet_model_id}), strength={control_strength}")
+        print(f"ControlNet mode: {control_from}")
+        print("control_map dtype/shape:",
+              None if control_map is None else (control_map.dtype, control_map.shape))
 
         control_image = control_image_from_map(control_map=control_map, safe_zone=safe_zone, size=(int(width), int(height)), mode=str(control_from))
         controlnet = ControlNetModel.from_pretrained(controlnet_model_id, torch_dtype=torch.float16)
@@ -158,7 +224,7 @@ def generate_and_mask(
             peft_file = lora_dir / "unet_lora_peft.pt"
             if peft_file.exists():
                 print(f"Loading PEFT LoRA for ControlNet from {peft_file}")
-                _load_unet_lora_peft(pipe, lora_dir, rank=8)
+                _load_unet_lora_peft(pipe, lora_dir)
             else:
                 pipe.load_lora_weights(lora_path)
 
@@ -197,7 +263,7 @@ def generate_and_mask(
                 except Exception as e:
                     print(f"Failed to set scheduler on base pipeline: {e}")
 
-            _load_unet_lora_peft(pipe, lora_dir, rank=8)
+            _load_unet_lora_peft(pipe, lora_dir)
         else:
             pipe = load_sdxl_with_lora(
                 model_id=model_id,
@@ -219,8 +285,13 @@ def generate_and_mask(
         )
         img = result.images[0]
 
-    # Apply safe-zone masking to enforce neutral element regions
-    masked = apply_safe_zone_mask(img, safe_zone, neutral_color=tuple(int(x) for x in neutral_rgb))
-
-    masked.save(str(out_path))
+    if apply_safe_mask and safe_zone is not None:
+        masked = apply_safe_zone_mask(
+            img,
+            safe_zone,
+            neutral_color=tuple(int(x) for x in neutral_rgb),
+        )
+        masked.save(str(out_path))
+    else:
+        img.save(str(out_path))
     return str(out_path)

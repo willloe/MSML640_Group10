@@ -1,11 +1,10 @@
 import argparse
 import json
 from dataclasses import dataclass, asdict
+from synthetic import sample_condition_batch, smooth_layout_regions
 from pathlib import Path
 import random
 from typing import List, Optional
-
-from zmq import device
 
 try:
     import torch
@@ -18,6 +17,7 @@ try:
     from diffusers.utils import logging as dlogging
     from peft import LoraConfig as PeftLoraConfig
     from peft.tuners.lora import LoraLayer
+    from safetensors.torch import save_file
 except Exception as e:
     torch = None
     F = None
@@ -29,8 +29,9 @@ except Exception as e:
     dlogging = None
     PeftLoraConfig = None
     LoraLayer = None
+    save_file = None
 
-from .lora_data import build_manifest
+from .lora_data import build_manifest, AbstractWithLayoutDataset, _with_slidesafe
 
 @dataclass
 class LoraTrainConfig:
@@ -47,6 +48,10 @@ class LoraTrainConfig:
     mixed_precision: str = "fp16"
     use_8bit_adam: bool = True
     seed: int = 42
+    layout_preproc: bool = False
+    layout_preproc_alpha: float = 0.6
+    layout_preproc_recipe: Optional[str] = None
+    layout_mask_dir: Optional[str] = None
 
 def _write_config(cfg: LoraTrainConfig, out_path: Path) -> None:
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -85,17 +90,30 @@ class JsonlImageDataset(Dataset):
         rec = self.items[idx]
         path = Path(rec["image"])
         caption = rec.get("caption", "")
+        caption = _with_slidesafe(caption)
         with Image.open(path) as im:
             tensor = self._preprocess(im)
         return {"pixel_values": tensor, "caption": caption}
 
-def _inject_unet_lora(pipe: "StableDiffusionXLPipeline", rank: int = 8) -> int:
+def _inject_unet_lora(pipe: StableDiffusionXLPipeline, rank: int = 8) -> int:
     pipe.unet.requires_grad_(False)
+
     unet_lora_cfg = PeftLoraConfig(
-        target_modules=["to_q", "to_k", "to_v", "to_out.0"]
+        r=rank,
+        lora_alpha=rank,
+        lora_dropout=0.0,
+        target_modules=["to_q", "to_k", "to_v", "to_out.0"],
+        bias="none",
     )
+
     pipe.unet.add_adapter(unet_lora_cfg)
-    return sum(p.requires_grad for p in pipe.unet.parameters())
+
+    trainable = 0
+    for p in pipe.unet.parameters():
+        if p.requires_grad:
+            trainable += p.numel()
+    print(f"Injected UNet LoRA: rank={rank}, trainable params={trainable}")
+    return trainable
 
 def _collect_lora_params(pipe: "StableDiffusionXLPipeline"):
     return [p for p in pipe.unet.parameters() if p.requires_grad]
@@ -109,15 +127,15 @@ def _encode_prompts(pipe: "StableDiffusionXLPipeline", captions: List[str], devi
             do_classifier_free_guidance=False,
         )
 
-    print("DEBUG encode_prompt type:", type(out))
-    if isinstance(out, tuple):
-        for i, elem in enumerate(out):
-            if isinstance(elem, torch.Tensor):
-                print(f"  elem[{i}] shape={elem.shape}, ndim={elem.ndim}, dtype={elem.dtype}")
-            else:
-                print(f"  elem[{i}] type={type(elem)}")
-    else:
-        print("  tensor shape", out.shape, "ndim", out.ndim, "dtype", out.dtype)
+    # print("DEBUG encode_prompt type:", type(out))
+    # if isinstance(out, tuple):
+    #     for i, elem in enumerate(out):
+    #         if isinstance(elem, torch.Tensor):
+    #             print(f"  elem[{i}] shape={elem.shape}, ndim={elem.ndim}, dtype={elem.dtype}")
+    #         else:
+    #             print(f"  elem[{i}] type={type(elem)}")
+    # else:
+    #     print("  tensor shape", out.shape, "ndim", out.ndim, "dtype", out.dtype)
 
     prompt_embeds = None
     pooled = None
@@ -200,16 +218,24 @@ def _save_unet_lora_peft(pipe, save_dir: Path) -> Path:
     import torch
     save_dir.mkdir(parents=True, exist_ok=True)
 
-    lora_state = {}
+    lora_state: dict[str, torch.Tensor] = {}
     for name, module in pipe.unet.named_modules():
         if isinstance(module, LoraLayer):
             for k, v in module.state_dict().items():
                 key = f"{name}.{k}"
                 lora_state[key] = v.detach().cpu()
 
-    out_path = save_dir / "unet_lora_peft.pt"
-    torch.save(lora_state, out_path)
-    return out_path
+    pt_path = save_dir / "unet_lora_peft.pt"
+    torch.save(lora_state, pt_path)
+
+    st_path = save_dir / "pytorch_lora_weights.safetensors"
+    try:
+        save_file(lora_state, str(st_path))
+        print(f"[LoRA] Saved safetensors weights to: {st_path}")
+    except Exception as e:
+        print(f"[LoRA] WARNING: failed to save safetensors weights: {e}")
+
+    return pt_path
 
 
 def main(argv=None):
@@ -227,6 +253,10 @@ def main(argv=None):
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--train_jsonl", default=None, help="If absent, create in <output_dir>/manifests/captions.jsonl from --images_dir.")
     ap.add_argument("--fallback_caption", default=None)
+    ap.add_argument("--layout-preproc", action="store_true")
+    ap.add_argument("--layout-preproc-alpha", type=float, default=0.6)
+    ap.add_argument("--layout-preproc-recipe", type=str, default=None, choices=[None, "academic", "marketing", "minimalist"])
+    ap.add_argument("--layout-mask-dir", type=str, default=None)
     args = ap.parse_args(argv)
     print("Entered main(), parsed args:", args, flush=True)
 
@@ -261,6 +291,10 @@ def main(argv=None):
         max_train_steps=int(args.max_train_steps),
         checkpoint_steps=int(args.checkpoint_steps),
         seed=int(args.seed),
+        layout_preproc=bool(args.layout_preproc),
+        layout_preproc_alpha=float(args.layout_preproc_alpha),
+        layout_preproc_recipe=args.layout_preproc_recipe,
+        layout_mask_dir=str(Path(args.layout_mask_dir).resolve()) if args.layout_mask_dir else None,
     )
     _write_config(cfg, output_dir / "lora_config.json")
     print("Training LoRA with config:", cfg, flush=True)
@@ -298,8 +332,14 @@ def main(argv=None):
         eps=1e-6,
         weight_decay=0.0,
     )
-    ds = JsonlImageDataset(Path(cfg.train_jsonl), resolution=cfg.resolution)
-    dl = DataLoader(ds, batch_size=cfg.batch_size, shuffle=True, num_workers=0, drop_last=True, pin_memory=(device == "cuda"))
+    if cfg.layout_preproc and cfg.layout_mask_dir is not None and cfg.layout_preproc_recipe is None:
+        bg_dir = Path(args.images_dir).resolve()
+        layout_dir = Path(cfg.layout_mask_dir).resolve()
+        print(f"Using AbstractWithLayoutDataset(bg_dir={bg_dir}, layout_dir={layout_dir})", flush=True)
+        ds = AbstractWithLayoutDataset(bg_dir=bg_dir,layout_dir=layout_dir, resolution=cfg.resolution,alpha=cfg.layout_preproc_alpha)
+    else:
+        ds = JsonlImageDataset(Path(cfg.train_jsonl), resolution=cfg.resolution)
+    dl = DataLoader(ds, batch_size=cfg.batch_size, shuffle=True, num_workers=2, drop_last=True, pin_memory=(device == "cuda"))
     print(f"DataLoader created with {len(ds)} items.", flush=True)
 
     scheduler = pipe.scheduler
@@ -309,9 +349,29 @@ def main(argv=None):
 
     while global_step < cfg.max_train_steps:
         for batch in dl:
-            print(f"Global step {global_step}, accumulation {accum}", flush=True)
+            if global_step % 40 == 0 and accum == 0:
+                print(f"Global step {global_step}, accumulation {accum}", flush=True)
             pixels = batch["pixel_values"].to(device, dtype=dtype)
             captions = batch["caption"]
+
+            use_runtime_layouts = cfg.layout_preproc and cfg.layout_preproc_recipe is not None and cfg.layout_mask_dir is None
+            if use_runtime_layouts:
+                B, C, H, W = pixels.shape
+
+                # Sample synthetic layouts for this batch
+                layout_samples = sample_condition_batch(
+                    n=B,
+                    canvas_size=(H, W),
+                    seed=cfg.seed + global_step if cfg.seed is not None else None,
+                    recipe=cfg.layout_preproc_recipe,
+                )
+                layouts = [s["layout"] for s in layout_samples]
+
+                pixels = smooth_layout_regions(
+                    pixels,
+                    layouts,
+                    alpha=cfg.layout_preproc_alpha,
+                )
 
             latents = _vae_encode(pipe, pixels)
             # noise_offset = 0.1
@@ -326,9 +386,9 @@ def main(argv=None):
             t = timesteps.to(device=device, dtype=timestep_dtype)
 
             noisy_latents = scheduler.add_noise(latents, noise, timesteps)
-            print("encoding prompts...")
+            # print("encoding prompts...")
             prompt_embeds, pooled_embeds = _encode_prompts(pipe, captions, device=device)
-            print("prompt_embeds:", prompt_embeds.shape, prompt_embeds.dtype)
+            # print("prompt_embeds:", prompt_embeds.shape, prompt_embeds.dtype)
 
             proj_dim_target = getattr(pipe.text_encoder_2.config, "projection_dim", None)
             if proj_dim_target is None:
@@ -407,7 +467,7 @@ def main(argv=None):
                 opt.zero_grad(set_to_none=True)
                 global_step += 1
 
-                if global_step % 10 == 0 or global_step == cfg.max_train_steps:
+                if global_step % 40 == 0 or global_step == cfg.max_train_steps:
                     print(f"step {global_step}/{cfg.max_train_steps} loss {loss.item():.4f}")
 
                 if global_step % 20 == 0:
