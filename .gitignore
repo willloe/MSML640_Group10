@@ -15,6 +15,7 @@ packages/classifier/text/output
 packages/classifier/text/sample_data
 packages/classifier/text/temp_slidevqa
 packages/classifier/text/trained_models/*.pkl
+packages/classifier/text/training_data/
 
 # Misc
 .DS_Store
