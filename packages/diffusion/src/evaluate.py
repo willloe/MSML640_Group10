@@ -126,6 +126,48 @@ def wcag_pass_rate(
     }
     return pass_rate, details
 
+def wcag_pass_rate_safe_zone(
+    img: Image.Image,
+    safe_zone: Any,
+    text_size: str = "normal",
+    sample_grid: int = 10,
+) -> float:
+    rgb = np.array(img.convert("RGB"), dtype=np.uint8)
+    h, w = rgb.shape[:2]
+
+    mask = _safe_zone_to_mask(safe_zone, (w, h))
+    if mask is None:
+        return wcag_pass_rate(img, text_size=text_size, sample_grid=sample_grid)
+
+    ys, xs = np.where(mask)
+    if ys.size == 0:
+        return wcag_pass_rate(img, text_size=text_size, sample_grid=sample_grid)
+
+    n_samples = min(sample_grid * sample_grid, ys.size)
+    idx = np.random.choice(ys.size, size=n_samples, replace=False)
+    ys_sample = ys[idx]
+    xs_sample = xs[idx]
+
+    bg_colors = rgb[ys_sample, xs_sample]
+    bg_lum = _rgb_to_relative_luminance(bg_colors)
+
+    threshold = 4.5 if text_size == "normal" else 3.0
+
+    contrast_white = _contrast_ratio(bg_lum, 1.0)
+    contrast_black = _contrast_ratio(bg_lum, 0.0)
+
+    passes_white = contrast_white >= threshold
+    passes_black = contrast_black >= threshold
+
+    pass_rate_white = passes_white.mean() if passes_white.size > 0 else 0.0
+    pass_rate_black = passes_black.mean() if passes_black.size > 0 else 0.0
+
+    if pass_rate_white >= pass_rate_black:
+        chosen_passes = passes_white
+    else:
+        chosen_passes = passes_black
+
+    return float(chosen_passes.mean()) if chosen_passes.size > 0 else 0.0
 
 def layout_safety(
     control_map: np.ndarray,
