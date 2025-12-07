@@ -1,5 +1,21 @@
 [
   {
+    "DETECTION_STATISTICS": {
+      "mode": "vision_only",
+      "total_slides_processed": 6,
+      "total_detections": 33,
+      "detections_per_slide": {
+        "min": 2,
+        "max": 10,
+        "average": 5.5
+      },
+      "breakdown": {
+        "graphs": 18,
+        "images_logos": 15
+      }
+    }
+  },
+  {
     "image": "image.png",
     "detections": {
       "graphs": {
@@ -18,6 +34,12 @@
           "images": 2
         }
       }
+    },
+    "total_objects_detected": 7,
+    "coverage_ratio": {
+      "vision_only": 7,
+      "with_text": 7,
+      "improvement_factor": 1.0
     }
   },
   {
@@ -37,6 +59,12 @@
           "images": 3
         }
       }
+    },
+    "total_objects_detected": 6,
+    "coverage_ratio": {
+      "vision_only": 6,
+      "with_text": 6,
+      "improvement_factor": 1.0
     }
   },
   {
@@ -57,6 +85,12 @@
           "images": 4
         }
       }
+    },
+    "total_objects_detected": 10,
+    "coverage_ratio": {
+      "vision_only": 10,
+      "with_text": 10,
+      "improvement_factor": 1.0
     }
   },
   {
@@ -74,6 +108,12 @@
           "logo": 1
         }
       }
+    },
+    "total_objects_detected": 2,
+    "coverage_ratio": {
+      "vision_only": 2,
+      "with_text": 2,
+      "improvement_factor": 1.0
     }
   },
   {
@@ -92,6 +132,12 @@
           "images": 2
         }
       }
+    },
+    "total_objects_detected": 5,
+    "coverage_ratio": {
+      "vision_only": 5,
+      "with_text": 5,
+      "improvement_factor": 1.0
     }
   },
   {
@@ -109,6 +155,12 @@
           "logo": 2
         }
       }
+    },
+    "total_objects_detected": 3,
+    "coverage_ratio": {
+      "vision_only": 3,
+      "with_text": 3,
+      "improvement_factor": 1.0
     }
   }
 ]

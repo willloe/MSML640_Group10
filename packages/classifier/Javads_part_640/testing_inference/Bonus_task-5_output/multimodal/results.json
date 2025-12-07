@@ -1,5 +1,22 @@
 [
   {
+    "DETECTION_STATISTICS": {
+      "mode": "multimodal",
+      "total_slides_processed": 6,
+      "total_detections": 117,
+      "detections_per_slide": {
+        "min": 10,
+        "max": 57,
+        "average": 19.5
+      },
+      "breakdown": {
+        "graphs": 18,
+        "images_logos": 15,
+        "text": 84
+      }
+    }
+  },
+  {
     "image": "image.png",
     "detections": {
       "graphs": {
@@ -35,7 +52,7 @@
             16
           ],
           "type": "Obj-text",
-          "type_conf": 0.9658835666370572
+          "type_conf": 0.9658835666370571
         },
         {
           "text": "15",
@@ -47,7 +64,7 @@
             18
           ],
           "type": "Obj-text",
-          "type_conf": 0.9760128312473337
+          "type_conf": 0.9760128312473338
         },
         {
           "text": "SO",
@@ -71,7 +88,7 @@
             20
           ],
           "type": "Obj-text",
-          "type_conf": 0.9779174832592483
+          "type_conf": 0.9779174832592484
         },
         {
           "text": "51.2%",
@@ -107,7 +124,7 @@
             20
           ],
           "type": "Obj-text",
-          "type_conf": 0.8933469325661337
+          "type_conf": 0.8933469325661335
         },
         {
           "text": "29.2%",
@@ -119,7 +136,7 @@
             24
           ],
           "type": "Obj-text",
-          "type_conf": 0.8929211786390386
+          "type_conf": 0.8929211786390385
         },
         {
           "text": "52",
@@ -131,7 +148,7 @@
             20
           ],
           "type": "Obj-text",
-          "type_conf": 0.9828668220728431
+          "type_conf": 0.9828668220728433
         },
         {
           "text": "L2.5%",
@@ -143,7 +160,7 @@
             20
           ],
           "type": "Obj-text",
-          "type_conf": 0.9027631732808057
+          "type_conf": 0.9027631732808058
         },
         {
           "text": "53",
@@ -155,9 +172,15 @@
             20
           ],
           "type": "Obj-text",
-          "type_conf": 0.9837821421974066
+          "type_conf": 0.9837821421974067
         }
       ]
+    },
+    "total_objects_detected": 18,
+    "coverage_ratio": {
+      "vision_only": 7,
+      "with_text": 18,
+      "improvement_factor": 2.57
     }
   },
   {
@@ -194,7 +217,7 @@
             16
           ],
           "type": "Obj-text",
-          "type_conf": 0.9789752371006254
+          "type_conf": 0.9789752371006253
         },
         {
           "text": "50",
@@ -206,7 +229,7 @@
             20
           ],
           "type": "Obj-text",
-          "type_conf": 0.979390842675538
+          "type_conf": 0.9793908426755382
         },
         {
           "text": "40",
@@ -218,7 +241,7 @@
             18
           ],
           "type": "Obj-text",
-          "type_conf": 0.9762517409035416
+          "type_conf": 0.9762517409035414
         },
         {
           "text": "30",
@@ -254,9 +277,15 @@
             20
           ],
           "type": "Obj-text",
-          "type_conf": 0.9829146065559639
+          "type_conf": 0.9829146065559644
         }
       ]
+    },
+    "total_objects_detected": 12,
+    "coverage_ratio": {
+      "vision_only": 6,
+      "with_text": 12,
+      "improvement_factor": 2.0
     }
   },
   {
@@ -296,7 +325,7 @@
             67
           ],
           "type": "Title",
-          "type_conf": 0.8547236337617363
+          "type_conf": 0.8547236337617364
         },
         {
           "text": "state",
@@ -308,7 +337,7 @@
             44
           ],
           "type": "Obj-text",
-          "type_conf": 0.7141967285334271
+          "type_conf": 0.7141967285334269
         },
         {
           "text": "action",
@@ -320,7 +349,7 @@
             48
           ],
           "type": "Obj-text",
-          "type_conf": 0.48999893664120153
+          "type_conf": 0.4899989366412016
         },
         {
           "text": "St",
@@ -332,7 +361,7 @@
             52
           ],
           "type": "Obj-text",
-          "type_conf": 0.8739751585821456
+          "type_conf": 0.873975158582146
         },
         {
           "text": "at",
@@ -344,7 +373,7 @@
             52
           ],
           "type": "Obj-text",
-          "type_conf": 0.8579317674812305
+          "type_conf": 0.8579317674812306
         },
         {
           "text": "F= E",
@@ -356,7 +385,7 @@
             20
           ],
           "type": "Obj-text",
-          "type_conf": 0.7680384787472911
+          "type_conf": 0.7680384787472909
         },
         {
           "text": "",
@@ -380,7 +409,7 @@
             18
           ],
           "type": "Obj-text",
-          "type_conf": 0.9091002320521345
+          "type_conf": 0.9091002320521347
         },
         {
           "text": "",
@@ -392,7 +421,7 @@
             16
           ],
           "type": "Obj-text",
-          "type_conf": 0.97073605739479
+          "type_conf": 0.9707360573947901
         },
         {
           "text": "F",
@@ -404,7 +433,7 @@
             16
           ],
           "type": "Obj-text",
-          "type_conf": 0.9666341026479692
+          "type_conf": 0.9666341026479693
         },
         {
           "text": "2",
@@ -416,7 +445,7 @@
             62
           ],
           "type": "Obj-text",
-          "type_conf": 0.8052936140716451
+          "type_conf": 0.8052936140716449
         },
         {
           "text": "2",
@@ -440,7 +469,7 @@
             42
           ],
           "type": "Obj-text",
-          "type_conf": 0.8102412059622509
+          "type_conf": 0.8102412059622505
         },
         {
           "text": "W",
@@ -464,7 +493,7 @@
             36
           ],
           "type": "Obj-text",
-          "type_conf": 0.822284130850252
+          "type_conf": 0.8222841308502518
         },
         {
           "text": "4",
@@ -476,7 +505,7 @@
             28
           ],
           "type": "Obj-text",
-          "type_conf": 0.9545177458324209
+          "type_conf": 0.954517745832421
         },
         {
           "text": "Wu)",
@@ -488,7 +517,7 @@
             14
           ],
           "type": "Obj-text",
-          "type_conf": 0.963484123066455
+          "type_conf": 0.9634841230664548
         },
         {
           "text": "Jerry",
@@ -524,7 +553,7 @@
             20
           ],
           "type": "Obj-text",
-          "type_conf": 0.9534365361750852
+          "type_conf": 0.9534365361750854
         },
         {
           "text": "Jolo",
@@ -572,7 +601,7 @@
             18
           ],
           "type": "Obj-text",
-          "type_conf": 0.9533033111965244
+          "type_conf": 0.9533033111965242
         },
         {
           "text": "Tne",
@@ -596,7 +625,7 @@
             24
           ],
           "type": "Obj-text",
-          "type_conf": 0.8070417335563674
+          "type_conf": 0.8070417335563675
         },
         {
           "text": "SCIENCE",
@@ -608,7 +637,7 @@
             32
           ],
           "type": "Other-text",
-          "type_conf": 0.5435260371328975
+          "type_conf": 0.5435260371328976
         },
         {
           "text": "2023, UNIVERSITY OF MARYLAND",
@@ -620,7 +649,7 @@
             20
           ],
           "type": "Other-text",
-          "type_conf": 0.9145203836813013
+          "type_conf": 0.9145203836813012
         },
         {
           "text": "MSML 642",
@@ -644,7 +673,7 @@
             32
           ],
           "type": "Other-text",
-          "type_conf": 0.7323043117105634
+          "type_conf": 0.7323043117105636
         },
         {
           "text": "5.52 PM",
@@ -656,7 +685,7 @@
             25
           ],
           "type": "Other-text",
-          "type_conf": 0.536066547313678
+          "type_conf": 0.5360665473136779
         },
         {
           "text": "91",
@@ -680,7 +709,7 @@
             24
           ],
           "type": "Obj-text",
-          "type_conf": 0.9205919722311482
+          "type_conf": 0.9205919722311484
         },
         {
           "text": "under",
@@ -692,7 +721,7 @@
             20
           ],
           "type": "Obj-text",
-          "type_conf": 0.9215564174326656
+          "type_conf": 0.9215564174326657
         },
         {
           "text": "prolection",
@@ -704,7 +733,7 @@
             21
           ],
           "type": "Obj-text",
-          "type_conf": 0.9204839857016605
+          "type_conf": 0.9204839857016607
         },
         {
           "text": "performier",
@@ -740,7 +769,7 @@
             21
           ],
           "type": "Obj-text",
-          "type_conf": 0.9071050515218744
+          "type_conf": 0.9071050515218745
         },
         {
           "text": "ATARI",
@@ -752,7 +781,7 @@
             25
           ],
           "type": "Obj-text",
-          "type_conf": 0.973235913824431
+          "type_conf": 0.9732359138244311
         },
         {
           "text": "mnalenhan",
@@ -764,7 +793,7 @@
             22
           ],
           "type": "Obj-text",
-          "type_conf": 0.9797695129193178
+          "type_conf": 0.979769512919318
         },
         {
           "text": "documeni",
@@ -776,7 +805,7 @@
             22
           ],
           "type": "Obj-text",
-          "type_conf": 0.9546110574231732
+          "type_conf": 0.9546110574231733
         },
         {
           "text": "communication",
@@ -788,7 +817,7 @@
             29
           ],
           "type": "Obj-text",
-          "type_conf": 0.8379968882994554
+          "type_conf": 0.8379968882994553
         },
         {
           "text": "material",
@@ -800,7 +829,7 @@
             23
           ],
           "type": "Obj-text",
-          "type_conf": 0.9217766093505751
+          "type_conf": 0.921776609350575
         },
         {
           "text": "copying",
@@ -851,6 +880,12 @@
           "type_conf": 0.9070092033966571
         }
       ]
+    },
+    "total_objects_detected": 57,
+    "coverage_ratio": {
+      "vision_only": 10,
+      "with_text": 57,
+      "improvement_factor": 5.7
     }
   },
   {
@@ -888,7 +923,7 @@
             42
           ],
           "type": "Title",
-          "type_conf": 0.941073910815487
+          "type_conf": 0.9410739108154871
         },
         {
           "text": "TNRR",
@@ -900,7 +935,7 @@
             43
           ],
           "type": "Obj-text",
-          "type_conf": 0.8239370894985544
+          "type_conf": 0.8239370894985545
         },
         {
           "text": "Milano",
@@ -912,7 +947,7 @@
             80
           ],
           "type": "Obj-text",
-          "type_conf": 0.4556665411445339
+          "type_conf": 0.45566654114453387
         },
         {
           "text": "Expanded to 12 new markets",
@@ -972,9 +1007,15 @@
             39
           ],
           "type": "Obj-text",
-          "type_conf": 0.931515903039125
+          "type_conf": 0.9315159030391249
         }
       ]
+    },
+    "total_objects_detected": 10,
+    "coverage_ratio": {
+      "vision_only": 2,
+      "with_text": 10,
+      "improvement_factor": 5.0
     }
   },
   {
@@ -1023,7 +1064,7 @@
             30
           ],
           "type": "Page-text",
-          "type_conf": 0.5468252609567719
+          "type_conf": 0.5468252609567718
         },
         {
           "text": "COMPRESSOR",
@@ -1047,7 +1088,7 @@
             8
           ],
           "type": "Obj-text",
-          "type_conf": 0.9164349606479992
+          "type_conf": 0.916434960647999
         },
         {
           "text": "~#",
@@ -1062,6 +1103,12 @@
           "type_conf": 0.9727276769959388
         }
       ]
+    },
+    "total_objects_detected": 10,
+    "coverage_ratio": {
+      "vision_only": 5,
+      "with_text": 10,
+      "improvement_factor": 2.0
     }
   },
   {
@@ -1109,7 +1156,7 @@
             26
           ],
           "type": "Obj-text",
-          "type_conf": 0.3841273058259925
+          "type_conf": 0.38412730582599264
         },
         {
           "text": "Increased revenue by 15%",
@@ -1121,7 +1168,7 @@
             26
           ],
           "type": "Obj-text",
-          "type_conf": 0.35621061805389614
+          "type_conf": 0.3562106180538961
         },
         {
           "text": "Team headcount grew 20%",
@@ -1133,7 +1180,7 @@
             26
           ],
           "type": "Obj-text",
-          "type_conf": 0.32636144013332397
+          "type_conf": 0.3263614401333241
         },
         {
           "text": "G R 0 U P E",
@@ -1145,7 +1192,7 @@
             20
           ],
           "type": "Obj-text",
-          "type_conf": 0.7647059983578511
+          "type_conf": 0.7647059983578514
         },
         {
           "text": "@sino",
@@ -1169,9 +1216,15 @@
             16
           ],
           "type": "Obj-text",
-          "type_conf": 0.5294377161188897
+          "type_conf": 0.5294377161188896
         }
       ]
+    },
+    "total_objects_detected": 10,
+    "coverage_ratio": {
+      "vision_only": 3,
+      "with_text": 10,
+      "improvement_factor": 3.33
     }
   }
 ]

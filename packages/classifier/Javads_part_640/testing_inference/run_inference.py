@@ -250,6 +250,18 @@ def run_everything(model_dict, in_folder, out_folder, conf=0.25, do_text=False, 
                 type_counts[typ] = type_counts.get(typ, 0) + 1
             img_data['text'] = {'count': len(text_stuff), 'types': type_counts, 'elements': text_stuff}
         
+        # Calculate detection statistics
+        vision_count = sum(img_data['detections'][m]['count'] for m in model_dict.keys())
+        text_count = img_data.get('text', {}).get('count', 0)
+        total_count = vision_count + text_count
+        
+        img_data['total_objects_detected'] = total_count
+        img_data['coverage_ratio'] = {
+            'vision_only': vision_count,
+            'with_text': total_count,
+            'improvement_factor': round(total_count / max(vision_count, 1), 2)
+        }
+        
         all_results.append(img_data)
         
         frame = cv2.imread(str(img_file))
@@ -268,13 +280,41 @@ def run_everything(model_dict, in_folder, out_folder, conf=0.25, do_text=False, 
     print("SUMMARY")
     print("="*50)
     
+    # Calculate totals for breakdown
+    total_vision = 0
+    breakdown = {}
     for n in model_dict.keys():
         tot = sum(s['detections'].get(n, {}).get('count', 0) for s in all_results)
+        total_vision += tot
+        breakdown[n] = tot
         print(f"{n}: {tot} detections")
     
+    total_text = 0
     if do_text:
-        txt_tot = sum(s.get('text', {}).get('count', 0) for s in all_results)
-        print(f"text: {txt_tot} elements")
+        total_text = sum(s.get('text', {}).get('count', 0) for s in all_results)
+        breakdown['text'] = total_text
+        print(f"text: {total_text} elements")
+    
+    # Calculate per-slide statistics
+    all_counts = [s['total_objects_detected'] for s in all_results]
+    
+    # Create detection statistics summary
+    detection_stats = {
+        "DETECTION_STATISTICS": {
+            "mode": "multimodal" if do_text else "vision_only",
+            "total_slides_processed": len(all_results),
+            "total_detections": total_vision + total_text,
+            "detections_per_slide": {
+                "min": min(all_counts) if all_counts else 0,
+                "max": max(all_counts) if all_counts else 0,
+                "average": round(sum(all_counts) / len(all_counts), 2) if all_counts else 0
+            },
+            "breakdown": breakdown
+        }
+    }
+    
+    # Insert summary at the beginning
+    all_results.insert(0, detection_stats)
     
     print(f"Results: {out_path}")
     
