@@ -1,4 +1,3 @@
-# File 3: packages/classifier/text/text_type_predictor.py
 import numpy as np
 import json
 import pickle
@@ -9,8 +8,6 @@ import joblib
 
 
 class TextTypePredictor:
-    """Predict text type using trained classifier"""
-    
     def __init__(self, model_dir):
         self.model_dir = Path(model_dir)
         self.model = joblib.load(self.model_dir / 'classifier_model.pkl')
@@ -23,10 +20,6 @@ class TextTypePredictor:
         self.id_to_label = {v: k for k, v in self.label_mapping.items()}
     
     def extract_features_from_bbox(self, image, bbox):
-        """
-        Extract features from a bounding box region
-        (Same as in TrainingDataPreparer)
-        """
         x, y, w, h = bbox
         img_width, img_height = image.size
         
@@ -72,17 +65,6 @@ class TextTypePredictor:
         return features
     
     def predict(self, image, bbox):
-        """
-        Predict text type for a bounding box
-        
-        Args:
-            image: PIL Image
-            bbox: [x, y, width, height]
-            
-        Returns:
-            text_type: Predicted class name
-            confidence: Prediction confidence
-        """
         features = self.extract_features_from_bbox(image, bbox)
         features_scaled = self.scaler.transform([features])
         
@@ -95,16 +77,6 @@ class TextTypePredictor:
         return text_type, confidence
     
     def predict_batch(self, image, bboxes):
-        """
-        Predict text types for multiple bounding boxes
-        
-        Args:
-            image: PIL Image
-            bboxes: List of [x, y, width, height]
-            
-        Returns:
-            List of (text_type, confidence) tuples
-        """
         features_list = [self.extract_features_from_bbox(image, bbox) for bbox in bboxes]
         features_scaled = self.scaler.transform(features_list)
         

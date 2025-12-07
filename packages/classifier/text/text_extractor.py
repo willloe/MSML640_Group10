@@ -116,9 +116,6 @@ def main():
         output_path = output_dir / f"{image.stem}_extracted.json"
         save_extraction_to_json(result, output_path)
     
-    print(f"\n{'='*60}")
-    print("EXTRACTION COMPLETE")
-    print('='*60)
 
 
 if __name__ == "__main__":

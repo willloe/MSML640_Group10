@@ -47,14 +47,6 @@ class TextTypeClassifierTrainer:
                 random_state=42,
                 n_jobs=-1
             )
-        elif model_type == 'svm':
-            self.model = SVC(
-                kernel='rbf',
-                C=1.0,
-                gamma='scale',
-                probability=True,
-                random_state=42
-            )
         else:
             raise ValueError(f"Unknown model type: {model_type}")
         
@@ -73,8 +65,6 @@ class TextTypeClassifierTrainer:
         # Metrics
         accuracy = accuracy_score(y_test, y_pred)
         
-        print("EVALUATION RESULTS")
-        print('-'*60)
         print(f"Test Accuracy: {accuracy:.4f}")
         
         # Reverse label mapping
@@ -164,7 +154,7 @@ def main():
     # Load data
     X_train, X_test, y_train, y_test, label_mapping, feature_names = trainer.load_data()
     
-    model_type = 'random_forest'  # or 'svm'
+    model_type = 'random_forest' 
     trainer.train_model(X_train, y_train, model_type=model_type)
     
     # Evaluate
@@ -184,7 +174,6 @@ def main():
     )
     
     trainer.save_model(model_dir)
-    print("TRAINING COMPLETE!")
 
 
 if __name__ == '__main__':

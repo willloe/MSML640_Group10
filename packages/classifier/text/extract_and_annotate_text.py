@@ -163,16 +163,12 @@ def process_dataset_sample(ann_dir, out_dir, max_imgs=None, seed=42):
     with open(out_dir / 'sample_metadata.json', 'w') as f:
         json.dump(meta, f, indent=2)
 
-    print(f"\n{'='*60}")
-    print("EXTRACTION COMPLETE")
-    print('='*60)
-    print(f"✓ Successfully downloaded: {ok} images")
-    print(f"✗ Failed downloads: {fail} images")
+    print(f"Successfully downloaded: {ok} images")
+    print(f"Failed downloads: {fail} images")
     print(f"\nOutput saved to:")
     print(f"  - Raw images: {out_dir / 'raw_images'}")
     print(f"  - Annotated images: {out_dir / 'annotated'}")
     print(f"  - Metadata: {out_dir / 'sample_metadata.json'}")
-    print('='*60)
 
 def main():
     p = Path(__file__).parent
