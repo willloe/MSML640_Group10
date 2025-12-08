@@ -268,9 +268,6 @@ Located in `prepare_training_data.py`:
    - Combine Random Forest with Gradient Boosting
    - Implement voting classifier
 
-5. **Real-time Processing**
-   - Optimize for live presentation analysis
-   - Batch processing optimization
 
 ---
 
@@ -284,7 +281,7 @@ Located in `prepare_training_data.py`:
 
 ## License
 
-This project is part of MSML640 coursework. Please refer to the main repository for license information.
+This project is part of MSML640 coursework.
 
 ## Contact
 
