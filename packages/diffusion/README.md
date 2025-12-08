@@ -31,9 +31,10 @@ packages/diffusion/
 │        └─ ...
 ├─ Javad/                        # Synthetic layout/mask generation + helpers
 ├─ src/                          # Core Python modules
-│  ├─ diffusion_pipeline.py
-│  ├─ lora_data.py
-│  ├─ lora_train.py
+│  ├─ lora
+│  |  ├─ lora_data.py
+│  |  ├─ lora_train.py
+|  |  ├─ prepare_lora_dataset.py
 │  ├─ infer.py
 │  ├─ sdxl.py
 │  ├─ style_labeling.py
