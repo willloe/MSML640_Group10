@@ -8,8 +8,6 @@ This project implements a two-part system that helps users turn messy or plain s
 2. **Layout-Aware Diffusion Module (Diffusion)**
    Uses the layout together with a style prompt + color palette to generate slide-safe backgrounds that keep text regions smooth and high-contrast.
 
-The main diffusion pipeline lives under **`packages/diffusion/`**.
-
 ---
 
 ## Repository Structure
@@ -35,7 +33,7 @@ MSML640_GROUP10/
 
 - Python **3.10+** (recommended)
 - Git
-- A GPU is strongly recommended for the diffusion part (tested on NVIDIA L4 / A100 in Colab).
+- A GPU is required for the diffusion part (tested on NVIDIA L4 / A100 in Colab).
 
 All Python dependencies are listed in `requirements.txt`.
 
@@ -83,6 +81,7 @@ If you are reproducing the project on a fresh machine:
 
 1. Download or regenerate the synthetic layouts using the scripts in `packages/diffusion/Javad/`.
 2. Ensure the dataset paths referenced in `Diffusion_Pipeline.ipynb` (and/or `src/diffusion_pipeline.py`) match where your images and JSON files actually live.
+3. For classifier, make sure to refer each of the respective README files in order to setup.
 
 ## Running the Diffusion Pipeline
 
@@ -134,7 +133,7 @@ python run_inference.py --pipeline diagrams --conf 0.25
 - `graphs/best.pt` - Charts & shapes detection
 - `images_logos/best.pt` - Images & logos detection
 - `nodes/best.pt` - Diagram nodes detection (diagrams pipeline only)
-- Text extraction - OCR + classification
+- `text/trained_models/classifier_model.pkl`- OCR + classification
 
 **Output:**
 ```
@@ -153,7 +152,7 @@ packages/classifier/Javads_part_640/testing_inference/results/
 
 If you want to train, test, or run specific classifiers independently:
 
-#### Text Classification (Anirud)
+#### Text Classification 
 Classifies text regions into: Title, Caption, Object-text, Other-text, Page-text
 
 **Navigate to:**
@@ -177,7 +176,7 @@ python text_extractor.py --input path/to/slides
 
 ---
 
-#### Chart & Shape Classification (Jerry)
+#### Chart & Shape Classification 
 Detects and classifies charts, graphs, tables, and geometric shapes
 
 **Navigate to:**
@@ -196,7 +195,7 @@ python detect_charts.py --input path/to/slides
 
 ---
 
-#### Image, Logo & Icon Classification (Javad)
+#### Image, Logo & Icon Classification 
 Detects and classifies logos, icons, images, and infographic elements
 
 **Navigate to:**
@@ -204,83 +203,8 @@ Detects and classifies logos, icons, images, and infographic elements
 cd packages/classifier/Javads_part_640
 ```
 
-**For detailed instructions, see:**  
-[Image/Logo Classifier README](packages/classifier/Javads_part_640/README.md)
-
 ---
 
-## Detected Elements
-
-The integrated classifier pipeline detects the following elements:
-
-**Charts & Shapes** (23 classes):
-- column, line, pie, bar, area, scatter, histogram, waterfall
-- flowchart, hierarchy, shapes, tables
-
-**Images & Logos** (2 classes):
-- logo, images
-
-**Diagram Nodes** (1 class):
-- diagram_node
-
-**Text** (5 types):
-- Title, Caption, Obj-text, Other-text, Page-text
-
----
-
-## Output Format
-
-### JSON Output Example
-
-```json
-{
-  "DETECTION_STATISTICS": {
-    "mode": "multimodal",
-    "total_slides_processed": 6,
-    "total_detections": 117,
-    "breakdown": {
-      "graphs": 18,
-      "images_logos": 15,
-      "text": 84
-    }
-  },
-  "SLIDES": [
-    {
-      "filename": "slide_001.jpg",
-      "detections": {
-        "graphs": [...],
-        "images_logos": [...],
-        "text": [...]
-      }
-    }
-  ]
-}
-```
-
----
-
-## Project Team
-
-- **Anirud Mohan** - Text Classification Pipeline
-- **Jerry** - Chart & Shape Detection
-- **Javad** - Image/Logo Classification & Pipeline Integration
-- **Team** - Diffusion Model Development
-
----
-
-## Citation
-
-```bibtex
-@software{msml640_slidesai_2024,
-  title={Slides-AI: Layout-Aware Presentation Background Generation},
-  author={Mohan, Anirud and {Jerry} and {Javad}},
-  year={2024},
-  institution={MSML640 - Group 10},
-  url={https://github.com/willloe/MSML640_Group10}
-}
-```
-
----
 
 ## References
 
