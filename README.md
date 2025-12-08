@@ -99,7 +99,7 @@ The diffusion code lives under `packages/diffusion/`.
 
 You can quickly test the generation with the provided `sample_layout.json` and `sample_palette.json` at the repo root by pointing the notebook to those files.
 
-**For detailed instructions, see:**  
+**For detailed instructions, see:**
 [Diffusion Pipeline README](packages/diffusion/README.md)
 
 ---
@@ -143,7 +143,7 @@ packages/classifier/Javads_part_640/testing_inference/results/
 └── layouts/             # Individual slide JSONs
 ```
 
-**For detailed instructions, see:**  
+**For detailed instructions, see:**
 [Integrated Pipeline README](packages/classifier/Javads_part_640/testing_inference/README.md)
 
 ---
@@ -152,7 +152,7 @@ packages/classifier/Javads_part_640/testing_inference/results/
 
 If you want to train, test, or run specific classifiers independently:
 
-#### Text Classification 
+#### Text Classification
 Classifies text regions into: Title, Caption, Object-text, Other-text, Page-text
 
 **Navigate to:**
@@ -171,12 +171,12 @@ python train_classifier.py
 python text_extractor.py --input path/to/slides
 ```
 
-**For detailed instructions, see:**  
+**For detailed instructions, see:**
 [Text Classifier README](packages/classifier/text/ReadMe.md)
 
 ---
 
-#### Chart & Shape Classification 
+#### Chart & Shape Classification
 Detects and classifies charts, graphs, tables, and geometric shapes
 
 **Navigate to:**
@@ -190,12 +190,12 @@ cd packages/classifier/graph_classifier
 python detect_charts.py --input path/to/slides
 ```
 
-**For detailed instructions, see:**  
+**For detailed instructions, see:**
 [Graph Classifier README](packages/classifier/graph_classifier/README.md)
 
 ---
 
-#### Image, Logo & Icon Classification 
+#### Image, Logo & Icon Classification
 Detects and classifies logos, icons, images, and infographic elements
 
 **Navigate to:**
