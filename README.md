@@ -108,7 +108,7 @@ You can quickly test the generation with the provided `sample_layout.json` and `
 
 The classifier module analyzes presentation slides to detect and classify different components including text, charts, shapes, diagrams, images, and logos. The output is a structured JSON layout.
 
-### Option 1: Run Complete Integrated Pipeline
+### Run Complete Integrated Pipeline
 
 For end-to-end slide analysis with all classifier components:
 
@@ -148,59 +148,25 @@ packages/classifier/Javads_part_640/testing_inference/results/
 
 ---
 
-### Option 2: Run Individual Classifier Components
+### Running Individual Models
 
-If you want to train, test, or run specific classifiers independently:
+You can run specific detection models individually without text extraction:
 
-#### Text Classification
-Classifies text regions into: Title, Caption, Object-text, Other-text, Page-text
-
-**Navigate to:**
 ```bash
-cd packages/classifier/text
-```
+cd packages/classifier/Javads_part_640/testing_inference
 
-**Quick Start:**
-```bash
-# Extract features and train model
-python extract_and_annotate_text.py
-python prepare_training_data.py
-python train_classifier.py
+# Run only chart/shape detection (no text)
+python run_inference.py --graphs "graphs/best.pt" --conf 0.25
 
-# Run text extraction and classification
-python text_extractor.py --input path/to/slides
-```
+# Run only image/logo detection (no text)
+python run_inference.py --images-logos "images_logos/best.pt" --conf 0.25
 
-**For detailed instructions, see:**
-[Text Classifier README](packages/classifier/text/ReadMe.md)
+# Run only diagram node detection (no text)
+python run_inference.py --nodes "nodes/best.pt" --conf 0.25
 
----
+# Run only text extraction (no YOLO models)
+python run_inference.py --text --conf 0.25
 
-#### Chart & Shape Classification
-Detects and classifies charts, graphs, tables, and geometric shapes
-
-**Navigate to:**
-```bash
-cd packages/classifier/graph_classifier
-```
-
-**Quick Start:**
-```bash
-# Run chart and shape detection
-python detect_charts.py --input path/to/slides
-```
-
-**For detailed instructions, see:**
-[Graph Classifier README](packages/classifier/graph_classifier/README.md)
-
----
-
-#### Image, Logo & Icon Classification
-Detects and classifies logos, icons, images, and infographic elements
-
-**Navigate to:**
-```bash
-cd packages/classifier/Javads_part_640
 ```
 
 ---
